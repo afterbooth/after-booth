@@ -16,6 +16,18 @@ Everything in the repository is English. Only text that Korean users see is Kore
 
 Pushed history is never rewritten to change language.
 
+## Writing issues, PRs and reviews
+
+The same text is read by teammates skimming GitHub and by agents parsing it. Write for both.
+
+1. **Conclusion first.** The first line under the title answers "what is true when this is done" (issue), "what changed and why" (PR) or "merge or not, and why" (review). A reader who stops there knows enough.
+2. **Title = outcome.** Issue: what someone can do ("Receiver holds an alternative item"). PR: `<type>(<scope>): <outcome>`. Not the activity ("Work on allocation").
+3. **Title, summary and link agree.** The PR title, its "In one sentence" and the linked issue's goal describe the same change. If the work grew, split it or retitle; do not let them drift.
+4. **Fixed headings, short lines.** Keep the template headings exactly; agents find sections by them. One idea per line, tables over paragraphs.
+5. **Everything is traceable.** Issues name their sources (SPEC section, contract operations, ERD tables, decisions). PRs say `Closes #N`, list decisions used, and name the proof for each acceptance criterion. Review findings have IDs (R1, R2) that the author answers by ID.
+
+CI (`pr-description`) checks the structure, and re-runs whenever the title or description is edited: PR title format, `Closes #N`, a filled "In one sentence", filled Trace fields, and that the title's type equals the `Type:` field. Whether the words make sense is the reviewer's first checklist item.
+
 ## Git workflow
 
 1. Every piece of work starts from an issue.
@@ -71,7 +83,8 @@ Bad: `update code`, `fix bug`, `WIP`, `feat: 수량 차감 추가`
 |---|---|
 | `backend` | `./gradlew build`: compile, spotlessCheck, every test including Testcontainers |
 | `frontend` | `npm ci`, then build (regenerates the client from the contract), test, lint, format:check |
-| `hygiene` | secret scan of changed files, PR title as an English Conventional Commit |
+| `hygiene` | secret scan of changed files |
+| `pr-description` | PR title as an English Conventional Commit; description follows the PR template (`scripts/check-pr-body.mjs`); re-runs on edit |
 
 CI runs with `AI_MODE=replay` and no Meta key.
 

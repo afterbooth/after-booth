@@ -12,6 +12,7 @@ The unit of work is a GitHub issue. Owners: **DY** = namdongyeob, **WJ** = WookJ
 - [x] #18 Translate docs, harness and code comments to English (DY)
 - [x] #1 Contract draft + `docs/ERD.md` (DY)
 - [x] #21 CI checks, required on main (DY)
+- [x] #23 Conclusion-first, traceable issue/PR/review templates + `pr-description` check (DY)
 - [ ] #2 Spike: model list, Spark text/image/function calling, SAM 3.1, Transcribe, cost → spike/REPORT.md (DY, key A)
 - [ ] **G0 STOP** — report the REPORT summary and the decisions for humans
 

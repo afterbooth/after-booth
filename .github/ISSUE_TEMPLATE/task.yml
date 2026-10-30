@@ -1,0 +1,50 @@
+name: Task
+description: Work with no direct user-facing behavior — infra, CI, docs, spike, refactor
+title: "<result of the task>"
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Title = the result: "CI checks required on main", not "Work on CI".
+        Add the matching type label (type:infra, type:docs, type:spike).
+  - type: textarea
+    id: summary
+    attributes:
+      label: In one sentence
+      description: What is true when this is done.
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: Why
+      description: One to three lines.
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope
+      value: |
+        In:
+        Out:
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      value: |
+        - [ ]
+    validations:
+      required: true
+  - type: textarea
+    id: sources
+    attributes:
+      label: Sources
+      description: Docs or decisions this relies on.
+  - type: input
+    id: depends
+    attributes:
+      label: Depends on
+      placeholder: "#1 (or None)"

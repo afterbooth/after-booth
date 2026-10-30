@@ -27,11 +27,12 @@ Finish one GitHub issue as a PR. Argument: issue number (e.g. `/feature 12`).
 
 ## Review and PR
 
-1. Start a **fresh** `reviewer` in review mode on `git diff origin/main...HEAD`. Any `blocking` goes back to the build loop (at most 2 rounds).
-2. Codex review: `node "<codex plugin>/scripts/codex-companion.mjs" review --wait --base origin/main`. For concurrency, state machine, AI validation or contract changes, also run `adversarial-review --wait --base origin/main "<risk to focus on>"`. Fix high-severity findings. The plugin path is `~/.claude/plugins/cache/openai-codex/codex/<version>/`.
-3. Tick the item in `docs/TASKS.md` and commit it with the change.
-4. `git push -u origin <branch>` → `gh pr create --fill-first`, then fill the body in the `.github/PULL_REQUEST_TEMPLATE.md` format (`Closes #<number>`, verification commands actually run, review results).
-5. A human merges. After the merge, clean up: `git worktree remove .claude/worktrees/<number>-<slug>`
+1. Write the PR description first, in the `.github/PULL_REQUEST_TEMPLATE.md` format, and check it locally: `node scripts/check-pr-body.mjs --title "<title>" --body-file <file>`. The title, "In one sentence" and the issue's goal must say the same thing; each ticked acceptance criterion names its proof.
+2. Start a **fresh** `reviewer` in review mode on `git diff origin/main...HEAD`, passing the draft title and description. Any `blocking` goes back to the build loop (at most 2 rounds).
+3. Codex review: `node "<codex plugin>/scripts/codex-companion.mjs" review --wait --base origin/main`. For concurrency, state machine, AI validation or contract changes, also run `adversarial-review --wait --base origin/main "<risk to focus on>"`. Fix high-severity findings. The plugin path is `~/.claude/plugins/cache/openai-codex/codex/<version>/`.
+4. Tick the item in `docs/TASKS.md` and commit it with the change.
+5. `git push -u origin <branch>` → `gh pr create --title "<title>" --body-file <file>`. Post the reviewer result and a Codex summary as one PR comment in the `docs/REVIEW_GUIDE.md` §Review format (Codex findings get IDs too).
+6. A human merges. After the merge, clean up: `git worktree remove .claude/worktrees/<number>-<slug>`
 
 ## Work that costs credits
 
@@ -41,5 +42,5 @@ The hook asks a human before any live/record call. Before it asks, state in one 
 
 - PR link, commit list
 - Verification commands run and their results / not verified
-- reviewer `RESULT` line, Codex review summary, remaining suggestions
+- reviewer verdict and counts, Codex review summary, remaining suggestions by ID
 - Any BLOCKED item and why

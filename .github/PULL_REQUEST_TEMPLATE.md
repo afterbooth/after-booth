@@ -1,35 +1,45 @@
-## Summary
+<!--
+Title: <type>(<scope>): <outcome in plain words>   e.g. feat(allocation): hold quantity with conditional update
+The title, "In one sentence" and the linked issue's goal must say the same thing. CI checks the structure below.
+Keep the headings exactly as they are; agents parse them.
+-->
 
-<!-- What changes and why, in 1-3 sentences. -->
+## In one sentence
 
-Closes #
+<!-- What changes and why, in one or two lines. A reader who stops here should know whether to care. -->
 
-## Changes
+## Trace
+
+- Issue: Closes #
+- Type: <!-- same as the title: feat | fix | refactor | perf | test | docs | build | ci | chore | revert -->
+- Area: <!-- backend | frontend | ai | contract | infra | docs (comma-separated) -->
+- Risk: <!-- low | medium | high — one reason -->
+- Decisions: <!-- D-0xx entries added or relied on, or None -->
+
+## Acceptance criteria
+
+<!-- Copy the issue's criteria. Tick only what this PR proves, and name the proof. -->
+- [ ] <criterion> — proof: <test name, command or screenshot>
+
+## What changed
 
 -
 
-## Meta AI usage
-
-<!-- Which Meta model is involved (Muse Spark / SAM 3.1 / Voice Transcribe) and what action its output leads to. Write "None" if not applicable. -->
-
 ## Verification
 
-<!-- Commands you actually ran and their results. Mark anything not run as "Not verified". -->
+<!-- Commands you actually ran and their results. Anything not run goes under "Not verified". -->
 
 ```
-cd backend && ./gradlew spotlessCheck compileJava test --tests "..."
-cd frontend && npm run build && npm test && npm run lint
 ```
 
-- [ ] Tests pass locally
-- [ ] Ran in `AI_MODE=replay` (no live calls), or listed live calls and cost in `docs/BUDGET.md`
+Not verified: <!-- or None -->
 
 ## Review
 
-- [ ] Claude `reviewer` agent: `RESULT: blocking 0`
-- [ ] Codex review (`/codex:review --base main`): no high-severity findings
-- [ ] Contract changes recorded in `docs/DECISIONS.md` (or none)
+- [ ] Claude `reviewer`: <!-- verdict and counts, or "not run — reason" -->
+- [ ] Codex: <!-- verdict and findings fixed, or "not run — reason" -->
+- [ ] Meta AI: <!-- which model is involved and what action its output leads to, or None -->
 
-## Screenshots / demo
+## Not done / follow-ups
 
-<!-- For UI changes: before/after screenshots or a short clip. -->
+<!-- Anything in the issue that this PR leaves out, with the issue that will do it. Or None. -->
