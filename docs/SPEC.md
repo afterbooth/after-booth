@@ -1,5 +1,7 @@
 # SPEC — AfterBooth
 
+Product requirements (this is our PRD). The API contract is `contract/openapi.yaml` and the data model is `docs/ERD.md`; both are derived from this file.
+
 A surplus equipment hand-off service for events. Equipment left over after festivals, exhibitions and pop-ups (display racks, storage bins, folding tables) goes to the next event or group **before the teardown deadline**.
 
 ## Hackathon constraints
@@ -39,7 +41,7 @@ A surplus equipment hand-off service for events. Equipment left over after festi
 
 ## Domain
 
-- Organization (seed), Item (category, size, condition, totalQty, availableQty, pickupDeadline, vehicleRequirement), Request, Reservation, HandoverLog, ReuseStat
+- Organization (seed), Event (seed), Item (category, size, condition, totalQty, availableQty, pickupDeadline, vehicleRequirement), PickupRequest, Reservation, HandoverLog, ReuseStat (a read model over handovers). Tables in `docs/ERD.md`
 - Reservation states: `HELD → CONFIRMED → HANDED_OVER`, `HELD|CONFIRMED → RELEASED`, `HELD → EXPIRED`
 - Quantity decrement: conditional UPDATE (`available_qty >= :q`); zero affected rows means failure
 - Idempotency key on every request. Cancel restores quantity. A scheduler releases holds that expire or pass the teardown deadline

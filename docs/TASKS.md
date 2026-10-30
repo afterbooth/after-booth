@@ -10,7 +10,7 @@ The unit of work is a GitHub issue. Owners: **DY** = namdongyeob, **WJ** = WookJ
 - [x] 0-3 Harness: CLAUDE.md, AGENTS.md, five .claude agents, feature skill, hooks, .codex
 - [x] 0-3b Conventions, review guide, code templates, PR/issue templates, commit-msg hook, ArchitectureTest
 - [x] #18 Translate docs, harness and code comments to English (DY)
-- [ ] #1 Contract draft (DY)
+- [x] #1 Contract draft + `docs/ERD.md` (DY)
 - [ ] #2 Spike: model list, Spark text/image/function calling, SAM 3.1, Transcribe, cost → spike/REPORT.md (DY, key A)
 - [ ] **G0 STOP** — report the REPORT summary and the decisions for humans
 

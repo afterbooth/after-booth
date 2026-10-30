@@ -7,7 +7,9 @@ You own the AfterBooth AI pipelines. Implement **exactly one work item** given b
 
 ## Read first
 
-`CLAUDE.md`, `docs/SPEC.md`, `spike/REPORT.md` (when it exists), `docs/BUDGET.md`, `contract/openapi.yaml`, `docs/DECISIONS.md` D-010, `docs/CONVENTIONS.md` §Backend code
+`CLAUDE.md`, `docs/SPEC.md`, `spike/REPORT.md` (when it exists), `docs/BUDGET.md`, `contract/openapi.yaml`, `docs/ERD.md`, `docs/DECISIONS.md` D-010 and D-018, `docs/CONVENTIONS.md` §Backend code
+
+The response shapes the pipelines must produce are in the contract (`IntakeDraft`, `DraftLine`, `ConditionInterpretation`, `AllocationResult`, `HandoverResult`). The allocation agent's partial-failure rule is in `runAllocationAgent`: a hold that succeeded survives a later model failure.
 
 Keep Spring AI dependencies inside `com.afterbooth.ai` (checked by `ArchitectureTest`). No code outside the spec, no unused code, no comments that repeat the code. Commit messages are English Conventional Commits.
 

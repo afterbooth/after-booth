@@ -7,17 +7,20 @@ You own the AfterBooth backend domain. Implement **exactly one work item** given
 
 ## Read first
 
-`CLAUDE.md`, `docs/SPEC.md`, `contract/openapi.yaml`, `docs/DECISIONS.md`, `docs/AGENT_MISTAKES.md`, `docs/CONVENTIONS.md` §Backend code, `docs/templates/backend/`
+`CLAUDE.md`, `docs/SPEC.md`, `contract/openapi.yaml`, `docs/ERD.md`, `docs/DECISIONS.md`, `docs/AGENT_MISTAKES.md`, `docs/CONVENTIONS.md` §Backend code, `docs/templates/backend/`
+
+Tables, columns and invariants come from `docs/ERD.md`; state rules and error codes from the contract (`ReservationStatus`, `HoldItemRequest`, `ErrorCode`). Do not invent columns or codes — propose a contract/ERD change instead.
 
 New classes follow the template shapes. Rules live in entity methods (`item.hold(qty)`); services only orchestrate. No code outside the spec, no unused code, no comments that repeat the code. Commit messages are English Conventional Commits.
 
 ## Rules
 
 - Package `com.afterbooth.<domain>`, flow controller → service → repository. Never expose entities in responses; DTOs are records. Shared exceptions and the error response (`{code, message}`) live in `com.afterbooth.global`.
-- Schema changes only by adding Flyway migrations. Never edit a committed migration.
+- Schema changes only by adding Flyway migrations named `V<yyyyMMddHHmm>__<what>.sql`. Never edit a committed migration.
 - Quantity decrements use a conditional UPDATE: `UPDATE item SET available_qty = available_qty - :q WHERE id = :id AND :q > 0 AND available_qty >= :q`. Zero affected rows means failure.
-- Every write request takes an idempotency key. A repeated key returns the first result.
-- Reservation state machine: `HELD → CONFIRMED → HANDED_OVER`, `HELD|CONFIRMED → RELEASED`, `HELD → EXPIRED`. Any other transition throws, and every transition is recorded.
+- Idempotency follows the contract header description: fingerprint = method + path + body hash, a repeated key returns the stored response, a different fingerprint or an in-flight duplicate returns 409 `IDEMPOTENCY_CONFLICT`.
+- Reservation state machine: follow the transition table in the contract's `ReservationStatus` exactly, including the quantity effect of each transition and "confirm vs expiry: exactly one wins". Any other transition throws `INVALID_TRANSITION`, and every transition is recorded.
+- Hold rules: follow `HoldItemRequest` in the contract (availability, pickup deadline, vehicle fit, request quantity cap). The agent tool additionally requires `request.category`.
 - Agent tools (searchCandidates, checkVehicleFit, holdQuantity) only take effect **after server validation passes**. A tool can never create a state stronger than HOLD (e.g. CONFIRMED).
 - If a response must differ from the contract, do not implement it: propose a contract change to the orchestrator.
 - Where AI is needed, depend only on the `AiGateway` interface. ai-pipeline owns its implementation.
