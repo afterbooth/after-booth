@@ -1,17 +1,26 @@
 name: Bug
-description: Something does not work as docs/SPEC.md or the contract says
+description: Something behaves differently from docs/SPEC.md or the contract
+title: "<what breaks, for whom>"
 labels: ["bug"]
 body:
-  - type: textarea
-    id: what
+  - type: markdown
     attributes:
-      label: What happened
+      value: |
+        Title = the symptom: "Second browser gets 500 instead of an alternative", not "Fix allocation".
+  - type: textarea
+    id: summary
+    attributes:
+      label: In one sentence
+      description: What breaks, for whom, and how bad it is for the demo.
     validations:
       required: true
   - type: textarea
     id: expected
     attributes:
-      label: Expected
+      label: Expected vs actual
+      value: |
+        Expected:
+        Actual:
     validations:
       required: true
   - type: textarea
@@ -21,6 +30,13 @@ body:
       description: Include AI_MODE (live / record / replay) and the request or screen.
       value: |
         1.
+    validations:
+      required: true
+  - type: textarea
+    id: sources
+    attributes:
+      label: Sources
+      description: The SPEC line, contract operation or decision that defines the expected behavior.
     validations:
       required: true
   - type: textarea

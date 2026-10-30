@@ -82,9 +82,4 @@ jobs:
           if [ -s changed.txt ]; then
             tr '\n' '\0' < changed.txt | xargs -0 node scripts/secret-scan.mjs
           fi
-      - name: PR title is an English Conventional Commit
-        env:
-          PR_TITLE: ${{ github.event.pull_request.title }}
-        run: |
-          printf '%s\n' "$PR_TITLE" > title.txt
-          node scripts/check-commit-msg.mjs title.txt
+      # The PR title and description are checked in pr-description.yml, which also re-runs when they are edited
