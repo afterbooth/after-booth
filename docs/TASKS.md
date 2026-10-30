@@ -14,7 +14,7 @@ The unit of work is a GitHub issue. Owners: **DY** = namdongyeob, **WJ** = WookJ
 - [x] #21 CI checks, required on main (DY)
 - [x] #23 Conclusion-first, traceable issue/PR/review templates + `pr-description` check (DY)
 - [x] #25 One rulebook: `AGENTS.md` for every agent, `CLAUDE.md` removed (DY)
-- [ ] #2 Spike: model list, Spark text/image/function calling, SAM 3.1, Transcribe, cost → spike/REPORT.md (DY, key A)
+- [x] #2 Spike: model list, Spark text/image/function calling, SAM 3.1, Transcribe, cost → spike/REPORT.md (DY, key A, $0.44)
 - [ ] **G0 STOP** — report the REPORT summary and the decisions for humans
 
 ## Phase 1: Features (target 11/1 night KST)
