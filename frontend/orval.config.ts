@@ -9,6 +9,8 @@ export default defineConfig({
       target: 'src/api/generated/afterbooth.ts',
       schemas: 'src/api/generated/model',
       client: 'fetch',
+      // makes the required Idempotency-Key header a typed argument, so a forgotten key fails at compile time
+      headers: true,
       override: { mutator: { path: 'src/api/http.ts', name: 'http' } },
       mock: true,
       clean: true,
