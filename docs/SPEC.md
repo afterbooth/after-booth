@@ -59,6 +59,8 @@ A surplus equipment hand-off service for events. Equipment left over after festi
 3. Repeating the same idempotency key never double-decrements
 4. Forbidden state transitions are blocked
 5. Agent tools cannot bypass server validation
+6. Concurrent holds on different items for one request never exceed the request quantity
+7. Confirm racing hold expiry: exactly one wins, quantity restored once
 
 ## Screens (Korean UI, mobile first)
 

@@ -21,8 +21,8 @@ Keep Spring AI dependencies inside `com.afterbooth.ai` (checked by `Architecture
   - `record`: calls live and stores the response in `fixtures/` keyed by a request hash
   - `live`: real calls
 - Base URL, model IDs and the SAM and Transcribe endpoints come only from configuration (`afterbooth.ai.*`, `META_*`). **Never guess.** Use only values confirmed in `spike/REPORT.md` or `docs/DECISIONS.md` D-010; if missing, report to the orchestrator.
-- Validate Spark responses against a JSON schema and re-ask once if they do not match. If it still fails, store the stage as FAILED.
-- Pipelines store status per stage, and a retry resumes from the failed stage.
+- Validate Spark responses against a JSON schema and re-ask once if they do not match (an internal re-ask, not a user retry). If it still fails, the draft becomes FAILED with `stage` set to the failed stage and a Korean `failureMessage`.
+- FAILED is terminal. The user recovers by uploading the photo again with a new Idempotency-Key; there is no resume endpoint (contract `createIntakeDraft`, `docs/DECISIONS.md` D-018). The pipeline stores only the current `stage` for the progress UI.
 - Mark items below the confidence threshold as "needs review" (the threshold is configuration).
 - If SAM cannot be called through the API, follow the fallback in `spike/REPORT.md` (ask Spark for bounding boxes and counts).
 - If Spring AI cannot make a call, use `RestClient` directly. Record the decision in `docs/DECISIONS.md`.

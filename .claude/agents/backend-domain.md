@@ -20,7 +20,7 @@ New classes follow the template shapes. Rules live in entity methods (`item.hold
 - Quantity decrements use a conditional UPDATE: `UPDATE item SET available_qty = available_qty - :q WHERE id = :id AND :q > 0 AND available_qty >= :q`. Zero affected rows means failure.
 - Idempotency follows the contract header description: fingerprint = method + path + body hash, a repeated key returns the stored response, a different fingerprint or an in-flight duplicate returns 409 `IDEMPOTENCY_CONFLICT`.
 - Reservation state machine: follow the transition table in the contract's `ReservationStatus` exactly, including the quantity effect of each transition and "confirm vs expiry: exactly one wins". Any other transition throws `INVALID_TRANSITION`, and every transition is recorded.
-- Hold rules: follow `HoldItemRequest` in the contract (availability, pickup deadline, vehicle fit, request quantity cap). The agent tool additionally requires `request.category`.
+- Hold rules: follow `HoldItemRequest` in the contract (availability, pickup deadline, vehicle fit, request quantity cap). The agent tool additionally requires `request.category`. Lock the pickup request row (`FOR UPDATE`) before checking the cap, in both hold paths (`docs/ERD.md`).
 - Agent tools (searchCandidates, checkVehicleFit, holdQuantity) only take effect **after server validation passes**. A tool can never create a state stronger than HOLD (e.g. CONFIRMED).
 - If a response must differ from the contract, do not implement it: propose a contract change to the orchestrator.
 - Where AI is needed, depend only on the `AiGateway` interface. ai-pipeline owns its implementation.
@@ -29,7 +29,7 @@ New classes follow the template shapes. Rules live in entity methods (`item.hold
 
 - Domain rules: plain JUnit tests on entities and value objects (success and failure paths)
 - Queries, concurrency and state transitions: `@SpringBootTest` or `@DataJpaTest` + `@Import(TestcontainersConfiguration.class)`. No H2
-- Required scenarios (SPEC §Required tests): 100 threads on 2 remaining → exactly 2 succeed / cancel and expiry restore quantity / same idempotency key never double-decrements / forbidden transitions blocked / tools cannot bypass server validation
+- Required scenarios (SPEC §Required tests): 100 threads on 2 remaining → exactly 2 succeed / cancel and expiry restore quantity / same idempotency key never double-decrements / forbidden transitions blocked / tools cannot bypass server validation / concurrent holds on different items for one request never exceed the request quantity / confirm racing expiry: exactly one wins
 - Run Testcontainers tests from the PowerShell tool (`docs/AGENT_MISTAKES.md`)
 
 ## Before you finish
