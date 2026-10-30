@@ -69,9 +69,9 @@ erDiagram
     pickup_request {
         bigint id PK
         bigint organization_id FK "receiver"
-        text category
+        text category "ItemCategory"
         int quantity
-        text vehicle_type
+        text vehicle_type "VehicleType"
         timestamptz pickup_deadline "nullable"
         text purpose "nullable"
         text transcript "nullable"
@@ -101,8 +101,8 @@ erDiagram
         bigint id PK
         bigint reservation_id FK
         int expected_qty
-        int counted_qty
-        int accepted_qty "nullable until resolved"
+        int counted_qty "SAM 3.1 count, always present"
+        int accepted_qty "set at submit on a match, or by resolve on the newest MISMATCH row"
         text status "COMPLETED|MISMATCH"
         jsonb boxes
         timestamptz created_at
@@ -125,12 +125,15 @@ erDiagram
 | `available_qty = total_qty − Σ(HELD, CONFIRMED quantity) − Σ(HANDED_OVER handed_over_qty)` | Every status change and its quantity effect happen in one transaction |
 | A reservation's status changes only along the table in `ReservationStatus` (contract) | `Reservation` entity methods + a conditional `UPDATE ... WHERE status = :expected` so confirm and expiry cannot both win |
 | Each request's active quantity ≤ `pickup_request.quantity` | `SELECT ... FROM pickup_request WHERE id = :id FOR UPDATE` first, then sum active reservations and insert, all in one transaction. Both `holdItem` and the agent's `holdQuantity` take this lock, so concurrent holds on different items for one request are serialized |
-| One allocation run per request while it has an active reservation | Checked before the agent runs (REQUEST_ALREADY_HELD) |
+| One allocation run per request while it has an active reservation | Checked inside the same `pickup_request` row lock (REQUEST_ALREADY_HELD), so a concurrent second run for the same request gets 409 |
+| A handover completes only after a photo count | `resolveHandover` requires the newest `handover_log` row for the reservation to be MISMATCH; `counted_qty` is NOT NULL |
 | Same Idempotency-Key never runs twice | `idempotency_record` row inserted first (`IN_PROGRESS`), response stored on `DONE` |
 
 ## Notes
 
 - **Reuse stats are a query, not a table.** `getReuseStats` sums `reservation.handed_over_qty` for HANDED_OVER reservations, grouped by item category and event. SPEC's "ReuseStat" is this read model.
+- **Allocation runs are not stored.** A same-key retry replays the response kept in `idempotency_record`; holds are re-read from `reservation`.
+- **Labels are not stored for lookups.** `item.label` is written from the category table in the contract (`ItemCategory`) at confirm time, and stats labels use the same table.
 - **Times are `timestamptz`.** The API returns them with the +09:00 offset (`docs/DECISIONS.md` D-019).
 - **Enums are `text` columns** mapped with `@Enumerated(EnumType.STRING)`, so values match the contract strings exactly.
 - **Seed data** (organizations, one event, demo items) lives in a Flyway migration so every environment, including Testcontainers, starts the same.
