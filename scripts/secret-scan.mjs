@@ -1,7 +1,7 @@
 #!/usr/bin/env node
-// 커밋 전 시크릿 스캔. git pre-commit hook(.githooks/pre-commit)과 Claude PreToolUse hook이 함께 쓴다.
-// 사용: node scripts/secret-scan.mjs [--staged | 파일...]
-// 오탐이면 해당 줄에 `secret-scan:allow` 주석을 붙인다.
+// Pre-commit secret scan, shared by the git pre-commit hook (.githooks/pre-commit) and the Claude PreToolUse hook.
+// Usage: node scripts/secret-scan.mjs [--staged | files...]
+// For a false positive, add a `secret-scan:allow` comment on that line.
 import { execFileSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import { basename, extname } from 'node:path'
@@ -47,7 +47,7 @@ function targets() {
 const findings = []
 for (const t of targets()) {
   if (isEnvFile(t.path)) {
-    findings.push(`${t.path}: .env 파일은 커밋할 수 없습니다`)
+    findings.push(`${t.path}: .env files must never be committed`)
     continue
   }
   if (BINARY_EXT.has(extname(t.path).toLowerCase())) continue
@@ -67,8 +67,8 @@ for (const t of targets()) {
 }
 
 if (findings.length > 0) {
-  console.error('[secret-scan] 시크릿으로 보이는 내용이 있어 커밋을 막았습니다:')
+  console.error('[secret-scan] Commit blocked: these look like secrets:')
   for (const f of findings) console.error(`  - ${f}`)
-  console.error('오탐이면 해당 줄에 `secret-scan:allow` 주석을 붙이세요.')
+  console.error('If this is a false positive, add a `secret-scan:allow` comment on that line.')
   process.exit(1)
 }

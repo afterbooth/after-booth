@@ -5,7 +5,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-// contract/openapi.yaml의 GET /api/health. 프론트가 현재 AI 모드를 표시하는 데 쓴다
+// GET /api/health from contract/openapi.yaml. The frontend shows the current AI mode from it
 @RestController
 class SystemController {
 

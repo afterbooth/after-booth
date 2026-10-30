@@ -57,7 +57,7 @@ class ItemServiceConcurrencyTest {
       }
       start.countDown();
 
-      // 예상 밖 예외는 get()에서 그대로 터져 테스트가 실패한다
+      // an unexpected exception surfaces from get() and fails the test
       List<ErrorCode> outcomes = new ArrayList<>();
       for (Future<ErrorCode> result : results) {
         outcomes.add(result.get(30, TimeUnit.SECONDS));

@@ -1,4 +1,4 @@
 package com.afterbooth.global.error;
 
-/** contract/openapi.yaml의 Error 스키마. */
+/** The Error schema from contract/openapi.yaml. */
 public record ErrorResponse(String code, String message) {}

@@ -1,4 +1,4 @@
-### 시크릿 — 절대 커밋 금지 ###
+### Secrets — never commit ###
 .env
 .env.*
 !.env.example
@@ -31,9 +31,9 @@ e2e/.auth/
 .DS_Store
 Thumbs.db
 
-### Claude Code 로컬 ###
+### Claude Code local ###
 .claude/settings.local.json
 .claude/worktrees/
 
-### spike 측정 원본 (샘플 사진·음성은 직접 확인 후에만 커밋) ###
+### Raw spike output (commit sample photos and audio only after checking them by hand) ###
 spike/out/

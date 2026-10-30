@@ -18,7 +18,7 @@ const messageOf = (e: unknown, fallback: string) => (e instanceof ApiError ? e.m
 
 export function useIntake() {
   const [state, setState] = useState<State>({ status: 'idle' })
-  // 응답 순서가 뒤바뀌어도 마지막 요청의 결과만 화면에 반영한다
+  // only the latest request may update the screen, even when responses arrive out of order
   const latest = useRef(0)
 
   const run = useCallback(async (task: () => Promise<State>) => {

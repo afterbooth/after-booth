@@ -11,7 +11,7 @@ const server = setupServer(
 beforeAll(() => server.listen())
 afterAll(() => server.close())
 
-test('서버 상태를 한국어로 보여준다', async () => {
+test('shows the server status in Korean', async () => {
   render(<App />)
   expect(await screen.findByText('서버 UP · AI replay')).toBeInTheDocument()
 })

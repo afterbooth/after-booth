@@ -17,13 +17,13 @@ const server = setupServer(
 beforeAll(() => server.listen())
 afterAll(() => server.close())
 
-test('성공 응답은 data와 status를 돌려준다', async () => {
+test('returns data and status for a successful response', async () => {
   const res = await http<{ data: { value: number }; status: number }>('http://test/ok')
   expect(res.status).toBe(200)
   expect(res.data.value).toBe(1)
 })
 
-test('실패 응답은 서버의 code와 message로 ApiError를 던진다', async () => {
+test('throws ApiError with the server code and message on failure', async () => {
   await expect(http('http://test/conflict')).rejects.toMatchObject({
     status: 409,
     code: 'QTY_UNAVAILABLE',
@@ -31,6 +31,6 @@ test('실패 응답은 서버의 code와 message로 ApiError를 던진다', asyn
   })
 })
 
-test('본문이 JSON이 아니어도 ApiError를 던진다', async () => {
+test('throws ApiError even when the body is not JSON', async () => {
   await expect(http('http://test/broken')).rejects.toBeInstanceOf(ApiError)
 })

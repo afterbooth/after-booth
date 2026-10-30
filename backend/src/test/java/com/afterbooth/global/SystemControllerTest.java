@@ -17,7 +17,7 @@ class SystemControllerTest {
   @Autowired MockMvc mockMvc;
 
   @Test
-  void health는_상태와_AI_모드를_반환한다() throws Exception {
+  void healthReturnsStatusAndAiMode() throws Exception {
     mockMvc
         .perform(get("/api/health"))
         .andExpect(status().isOk())
