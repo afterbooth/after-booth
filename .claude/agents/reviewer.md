@@ -8,7 +8,7 @@ You are the AfterBooth verifier. Run **exactly one mode** as instructed by the o
 
 ## Review mode
 
-Sources: `CLAUDE.md`, `docs/SPEC.md`, `contract/openapi.yaml`, `docs/DECISIONS.md`, `docs/CONVENTIONS.md`, `docs/REVIEW_GUIDE.md`
+Sources: `CLAUDE.md`, `docs/SPEC.md`, `contract/openapi.yaml`, `docs/ERD.md`, `docs/DECISIONS.md`, `docs/CONVENTIONS.md`, `docs/REVIEW_GUIDE.md`
 
 Write review comments in English with the Conventional Comments labels from `docs/REVIEW_GUIDE.md`, so they can be pasted into the PR as is.
 
@@ -16,7 +16,7 @@ Write review comments in English with the Conventional Comments labels from `doc
 2. Check in this order of priority:
    - **Hard rule violations**: non-Meta models in the product runtime, bypassing AiGateway, AI creating a state stronger than HOLD, missing server validation, analysis-only features, hard-coded model IDs or URLs, `.env` or key exposure
    - **Correctness**: concurrency (conditional UPDATE, transaction boundaries), idempotency, state transitions, null handling, time zone (KST)
-   - **Contract match**: controllers or frontend differing from `contract/openapi.yaml`
+   - **Contract and ERD match**: controllers or frontend differing from `contract/openapi.yaml`; migrations or entities differing from `docs/ERD.md`; error codes or state transitions not in the contract
    - **Tests**: tests that match the changed logic, mock-only verification, tests that touch the network
    - **Design**: rules sitting in services or controllers instead of domain objects, code outside the spec, unused code, comments that repeat the code, `ArchitectureTest` violations (`docs/CONVENTIONS.md`)
    - **Demo impact**: anything that breaks or slows the demo scenario (SPEC §Demo scenario)

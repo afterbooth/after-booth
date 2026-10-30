@@ -7,7 +7,9 @@ You own the AfterBooth AI pipelines. Implement **exactly one work item** given b
 
 ## Read first
 
-`CLAUDE.md`, `docs/SPEC.md`, `spike/REPORT.md` (when it exists), `docs/BUDGET.md`, `contract/openapi.yaml`, `docs/DECISIONS.md` D-010, `docs/CONVENTIONS.md` §Backend code
+`CLAUDE.md`, `docs/SPEC.md`, `spike/REPORT.md` (when it exists), `docs/BUDGET.md`, `contract/openapi.yaml`, `docs/ERD.md`, `docs/DECISIONS.md` D-010 and D-018, `docs/CONVENTIONS.md` §Backend code
+
+The response shapes the pipelines must produce are in the contract (`IntakeDraft`, `DraftLine`, `ConditionInterpretation`, `AllocationResult`, `HandoverResult`). The allocation agent's partial-failure rule is in `runAllocationAgent`: a hold that succeeded survives a later model failure.
 
 Keep Spring AI dependencies inside `com.afterbooth.ai` (checked by `ArchitectureTest`). No code outside the spec, no unused code, no comments that repeat the code. Commit messages are English Conventional Commits.
 
@@ -19,8 +21,8 @@ Keep Spring AI dependencies inside `com.afterbooth.ai` (checked by `Architecture
   - `record`: calls live and stores the response in `fixtures/` keyed by a request hash
   - `live`: real calls
 - Base URL, model IDs and the SAM and Transcribe endpoints come only from configuration (`afterbooth.ai.*`, `META_*`). **Never guess.** Use only values confirmed in `spike/REPORT.md` or `docs/DECISIONS.md` D-010; if missing, report to the orchestrator.
-- Validate Spark responses against a JSON schema and re-ask once if they do not match. If it still fails, store the stage as FAILED.
-- Pipelines store status per stage, and a retry resumes from the failed stage.
+- Validate Spark responses against a JSON schema and re-ask once if they do not match (an internal re-ask, not a user retry). If it still fails, the draft becomes FAILED with `stage` set to the failed stage and a Korean `failureMessage`.
+- FAILED is terminal. The user recovers by uploading the photo again with a new Idempotency-Key; there is no resume endpoint (contract `createIntakeDraft`, `docs/DECISIONS.md` D-018). The pipeline stores only the current `stage` for the progress UI.
 - Mark items below the confidence threshold as "needs review" (the threshold is configuration).
 - If SAM cannot be called through the API, follow the fallback in `spike/REPORT.md` (ask Spark for bounding boxes and counts).
 - If Spring AI cannot make a call, use `RestClient` directly. Record the decision in `docs/DECISIONS.md`.

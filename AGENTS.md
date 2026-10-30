@@ -4,10 +4,11 @@ Entry point for agents that read AGENTS.md, such as Codex and Muse Code. **`CLAU
 
 ## Read first
 
-1. `CLAUDE.md` — hard rules, STOP gates, file ownership, commands
-2. `docs/TASKS.md` — where the work stands
+1. `CLAUDE.md` — hard rules, STOP gates, file ownership, commands, and the **doc routing table**: read only the row for your task
+2. `docs/TASKS.md` — where the work stands, and the GitHub issue you are working on (`gh issue view <n>`)
 3. `docs/AGENT_MISTAKES.md` — pitfalls reproduced on this PC
-4. `docs/CONVENTIONS.md`, `docs/templates/` — code and commit rules and templates. Write reviews in the `docs/REVIEW_GUIDE.md` format
+4. Sources of truth, in this order: `docs/SPEC.md` (product) → `contract/openapi.yaml` (API) → `docs/ERD.md` (tables). Never implement something that contradicts them; propose a change instead
+5. `docs/CONVENTIONS.md`, `docs/templates/` — code and commit rules and templates. Write reviews in the `docs/REVIEW_GUIDE.md` format
 
 ## Tool differences
 

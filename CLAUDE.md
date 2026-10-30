@@ -80,7 +80,7 @@ Run fully automated, but stop and report at these points only.
 
 - `backend/`: Java 21, Spring Boot 4.1, Spring AI 2.0 (OpenAI starter with base-url pointed at the Meta Model API), PostgreSQL 17, Flyway, Testcontainers
   - Packages: `com.afterbooth.<domain>` (inventory, intake, request, allocation, handover, stats), shared code in `com.afterbooth.global`, AI in `com.afterbooth.ai`
-  - Schema changes only through Flyway (`V{N}__*.sql`). `ddl-auto=validate`
+  - Tables follow `docs/ERD.md`. Schema changes only through Flyway, versioned by timestamp (`V202610311200__create_core_tables.sql`) so parallel branches never collide. `ddl-auto=validate`
 - `frontend/`: React 19 + Vite + TypeScript + Tailwind v4, Korean UI, mobile first. orval generates the API client and MSW mocks from the contract (`src/api/generated/`, not committed). Use the `frontend-design` skill for UI work.
 - `contract/openapi.yaml`: API contract of record
 - `fixtures/`: AI responses for replay. `spike/`: throwaway experiments and `REPORT.md`
@@ -92,15 +92,17 @@ Read `docs/AGENT_MISTAKES.md` first. In particular, run Testcontainers from the 
 
 ## Doc routing — what to read per task
 
-Do not read every doc. Read only the row for your task. Every task starts with `CLAUDE.md` + `docs/TASKS.md` + `docs/AGENT_MISTAKES.md`.
+Do not read every doc. Read only the row for your task. Every task starts with `CLAUDE.md` + `docs/TASKS.md` + `docs/AGENT_MISTAKES.md` + the GitHub issue (`gh issue view <n>`).
+
+Sources of truth, in order: `docs/SPEC.md` (what to build) → `contract/openapi.yaml` (API) → `docs/ERD.md` (tables) → the issue (scope and acceptance criteria). When they disagree, stop and fix the higher document first (contract and ERD changes go through `docs/DECISIONS.md`); never let code drift silently.
 
 | Task | Also read |
 |---|---|
-| Backend domain | `docs/SPEC.md` §Domain and §Required tests, `contract/openapi.yaml`, `docs/CONVENTIONS.md` §Backend code, `docs/templates/backend/` |
-| AI pipeline | `docs/SPEC.md` §Features, `spike/REPORT.md`, `docs/BUDGET.md`, `docs/DECISIONS.md` D-010 |
-| Frontend screen | `docs/SPEC.md` §Screens and §Demo scenario, `contract/openapi.yaml`, `docs/CONVENTIONS.md` §Frontend code, `docs/templates/frontend/` |
-| Contract change | `contract/openapi.yaml`, `docs/DECISIONS.md` |
-| Review | `docs/REVIEW_GUIDE.md`, `docs/SPEC.md`, `contract/openapi.yaml` |
+| Backend domain | `docs/SPEC.md` §Domain and §Required tests, `contract/openapi.yaml`, `docs/ERD.md`, `docs/DECISIONS.md` D-018–D-020, `docs/CONVENTIONS.md` §Backend code, `docs/templates/backend/` |
+| AI pipeline | `docs/SPEC.md` §Features, `contract/openapi.yaml` (intake, conditions, allocation, handover), `docs/ERD.md`, `spike/REPORT.md`, `docs/BUDGET.md`, `docs/DECISIONS.md` D-010, D-018 |
+| Frontend screen | `docs/SPEC.md` §Screens and §Demo scenario, `contract/openapi.yaml`, `docs/DECISIONS.md` D-019, D-021, `docs/CONVENTIONS.md` §Frontend code, `docs/templates/frontend/` |
+| Contract or ERD change | `contract/openapi.yaml`, `docs/ERD.md`, `docs/DECISIONS.md` |
+| Review | `docs/REVIEW_GUIDE.md`, `docs/SPEC.md`, `contract/openapi.yaml`, `docs/ERD.md` |
 | E2E and demo | `docs/SPEC.md` §Demo scenario, `docs/BUDGET.md` |
 | Commits, PRs, issues | `docs/CONVENTIONS.md` §Git workflow, §Commit messages, §Pull requests |
 | Submission material | `README.md`, `docs/SPEC.md` §Hackathon constraints, `docs/REVIEW_GUIDE.md` §Checklist |
@@ -109,7 +111,9 @@ Do not read every doc. Read only the row for your task. Every task starts with `
 
 | Doc | Purpose |
 |---|---|
-| `docs/SPEC.md` | Product spec and demo scenario (source of truth) |
+| `docs/SPEC.md` | Product requirements (our PRD) and demo scenario (source of truth) |
+| `contract/openapi.yaml` | API contract: endpoints, schemas, error codes, state rules |
+| `docs/ERD.md` | Data model: tables, columns, invariants, migration naming |
 | `docs/TASKS.md` | Checklist per phase, issue numbers, owners, BLOCKED |
 | `docs/DECISIONS.md` | Decision log (including contract changes) |
 | `docs/CONVENTIONS.md` | Language, git workflow, commit rules, code design and comment rules |

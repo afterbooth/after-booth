@@ -1,14 +1,45 @@
 openapi: 3.1.0
 info:
   title: AfterBooth API
-  version: 0.0.1
+  version: 0.1.0
   description: |
     API contract of record. The frontend generates its client and MSW mocks from this file (frontend `npm run gen:api`).
-    This is a minimal version that proves the generation pipeline. Issue #1 adds inventory, intake drafts,
-    pickup requests, allocation (HOLD / confirm / cancel), handover and stats.
     Contract changes go in a separate commit that touches only contract/, recorded in docs/DECISIONS.md.
+
+    Conventions
+    - Times are ISO 8601. Responses use the +09:00 offset (Asia/Seoul). Relative times in speech ("8시까지") are
+      resolved against the server clock in Asia/Seoul; for GIVER conditions, against the event's date.
+    - Sizes are centimeters. Bounding boxes are normalized to the photo (0..1).
+    - Optional fields are omitted when empty, never sent as null.
+    - Writes that create or change state take a required `Idempotency-Key` header (UUID, one per user action).
+      The server fingerprints method + path + body (file hash for multipart). Same key + same fingerprint returns
+      the stored first response without re-running anything. Same key + different fingerprint, or the same key
+      while the first call is still running, returns 409 `IDEMPOTENCY_CONFLICT`. A missing key returns 400.
+      Client rule: on `IDEMPOTENCY_CONFLICT`, retry with the same key after 1, 2 and 4 seconds (covers the in-flight
+      case); if it still fails, show the message and treat the next tap as a new action with a new key.
+    - Errors use the `Error` schema. `message` is Korean and safe to show to users. Any operation may also return
+      500 `INTERNAL_ERROR`, and 405/415 `UNSUPPORTED_REQUEST` for a wrong method or content type (for example an
+      audio format Voice Transcribe does not accept).
+    - There is no sign-in. Screens pick the organization from `listOrganizations`.
+    - AI proposes, the server decides: the allocation agent can create at most a HELD reservation, and every tool
+      call is validated by the same rules as `holdItem`.
 servers:
   - url: /
+tags:
+  - name: system
+  - name: catalog
+    description: Seeded organizations and events
+  - name: intake
+    description: Photo → SAM 3.1 count → Muse Spark estimate → inventory draft → confirm
+  - name: conditions
+    description: Voice or text → Voice Transcribe → Muse Spark structured conditions
+  - name: inventory
+  - name: requests
+    description: Pickup requests and the allocation agent
+  - name: reservations
+  - name: handover
+  - name: stats
+
 paths:
   /api/health:
     get:
@@ -22,7 +53,625 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Health'
+
+  /api/organizations:
+    get:
+      operationId: listOrganizations
+      tags: [catalog]
+      summary: Seeded organizations (givers and receivers)
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Organization'
+
+  /api/events:
+    get:
+      operationId: listEvents
+      tags: [catalog]
+      summary: Seeded events with their teardown deadlines
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Event'
+
+  /api/events/{eventId}:
+    parameters:
+      - $ref: '#/components/parameters/EventId'
+    get:
+      operationId: getEvent
+      tags: [catalog]
+      summary: One event
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Event'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/intake/drafts:
+    post:
+      operationId: createIntakeDraft
+      tags: [intake]
+      summary: Upload a booth photo and start the counting pipeline
+      description: |
+        Returns immediately with status PROCESSING. Poll `getIntakeDraft` (about once a second) until READY or FAILED.
+        Stages: SEGMENT (SAM 3.1 separates and counts items) → ESTIMATE (Muse Spark estimates category, size and
+        condition per crop, with confidence). On FAILED, upload again with a new Idempotency-Key.
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [eventId, photo]
+              properties:
+                eventId:
+                  type: integer
+                  format: int64
+                photo:
+                  type: string
+                  format: binary
+                  description: JPEG or PNG, up to 10 MB (provisional until spike #2)
+      responses:
+        '202':
+          description: Accepted, processing
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IntakeDraft'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /api/intake/drafts/{draftId}:
+    parameters:
+      - $ref: '#/components/parameters/DraftId'
+    get:
+      operationId: getIntakeDraft
+      tags: [intake]
+      summary: Draft with its current pipeline status
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IntakeDraft'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/intake/drafts/{draftId}/confirm:
+    parameters:
+      - $ref: '#/components/parameters/DraftId'
+    post:
+      operationId: confirmIntakeDraft
+      tags: [intake]
+      summary: Confirm the human-reviewed draft into inventory items
+      description: |
+        The person may edit category, quantity, size and condition, or drop lines. Only lines sent here become items.
+        Each `lineId` must be one of this draft's lines and appear once (400 INVALID_INPUT otherwise).
+        `Item.label` is derived from the confirmed category (see `ItemCategory`), not copied from the draft line.
+        On success the draft becomes CONFIRMED. A draft can be confirmed once (DRAFT_ALREADY_CONFIRMED). A draft that
+        is not READY fails with DRAFT_NOT_READY.
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConfirmIntakeRequest'
+      responses:
+        '201':
+          description: Items created
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Item'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /api/conditions/interpret:
+    post:
+      operationId: interpretConditions
+      tags: [conditions]
+      summary: Turn spoken or typed conditions into structured fields
+      description: |
+        Send exactly one of `audio` or `text`. Audio goes through Voice Transcribe first.
+        Muse Spark maps the transcript to `Conditions`. Nothing is saved; the person reviews the result,
+        then uses it in `confirmIntakeDraft` (GIVER) or `createPickupRequest` (RECEIVER).
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [context]
+              properties:
+                context:
+                  $ref: '#/components/schemas/ConditionContext'
+                eventId:
+                  type: integer
+                  format: int64
+                  description: Required for GIVER, so relative times resolve against the event date
+                audio:
+                  type: string
+                  format: binary
+                  description: MediaRecorder output (webm/ogg/m4a/wav), up to 60 seconds (provisional until spike #2)
+                text:
+                  type: string
+                  maxLength: 500
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConditionInterpretation'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '503':
+          $ref: '#/components/responses/AiUnavailable'
+
+  /api/items:
+    get:
+      operationId: listItems
+      tags: [inventory]
+      summary: Inventory items, optionally for one event
+      parameters:
+        - name: eventId
+          in: query
+          schema:
+            type: integer
+            format: int64
+        - name: availableOnly
+          in: query
+          description: Only items with availableQty > 0 whose pickup deadline has not passed
+          schema:
+            type: boolean
+            default: false
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Item'
+
+  /api/items/{itemId}:
+    parameters:
+      - $ref: '#/components/parameters/ItemId'
+    get:
+      operationId: getItem
+      tags: [inventory]
+      summary: One item with live quantities
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Item'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/pickup-requests:
+    post:
+      operationId: createPickupRequest
+      tags: [requests]
+      summary: Save a receiver's pickup request
+      description: The receiver picks their organization from `listOrganizations` (there is no sign-in); speech never sets it.
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePickupRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PickupRequest'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /api/pickup-requests/{requestId}:
+    parameters:
+      - $ref: '#/components/parameters/RequestId'
+    get:
+      operationId: getPickupRequest
+      tags: [requests]
+      summary: One pickup request
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PickupRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/pickup-requests/{requestId}/allocation:
+    parameters:
+      - $ref: '#/components/parameters/RequestId'
+    post:
+      operationId: runAllocationAgent
+      tags: [requests]
+      summary: Run the allocation agent for a request
+      description: |
+        Muse Spark calls the server tools `searchCandidates`, `checkVehicleFit` and `holdQuantity`.
+        The server validates every `holdQuantity` call with the hold rules (see `HoldItemRequest`), plus:
+        the agent may only hold items of `request.category`.
+
+        Outcomes (both are 200):
+        - HELD: at least one reservation was held; `reservations` lists them (status HELD only). Holding less than
+          `request.quantity` is allowed (e.g. 2 of 5); the UI shows "2 of 5" and the receiver tops up with
+          `holdItem` from `alternatives`.
+        - NO_MATCH: nothing was held; `rejections` says why per candidate and `alternatives` lists what can be held
+          with `holdItem`. Two concurrent calls for the last unit (two requests) end with one HELD and one NO_MATCH.
+        An item offered in `alternatives` is not also listed in `rejections`.
+
+        Partial failure: once any hold succeeded, the result is HELD even if the model fails afterwards; the server
+        then writes `explanation` from a template. 503 AI_UNAVAILABLE is returned only when nothing was held.
+
+        One allocation per request: if the request already has a HELD or CONFIRMED reservation, the call fails
+        with 409 REQUEST_ALREADY_HELD. This check runs inside the request-row lock, so of two concurrent runs for
+        the same request (different keys) the second gets 409.
+
+        Allocation runs are not stored. A same-key retry replays the stored response from the idempotency record;
+        after a page reload, holds come from `listReservations?requestId=`.
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200':
+          description: Agent finished
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AllocationResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '503':
+          $ref: '#/components/responses/AiUnavailable'
+
+  /api/reservations:
+    get:
+      operationId: listReservations
+      tags: [reservations]
+      summary: Reservations, filtered by request and/or event (filters combine with AND; no transition history)
+      parameters:
+        - name: requestId
+          in: query
+          schema:
+            type: integer
+            format: int64
+        - name: eventId
+          in: query
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Reservation'
+    post:
+      operationId: holdItem
+      tags: [reservations]
+      summary: Hold a specific item, e.g. an alternative the agent offered
+      description: |
+        Applies the hold rules in `HoldItemRequest`. Unlike the agent, any category may be held here, because
+        alternatives can be a different category. Fails with QTY_UNAVAILABLE, PICKUP_CLOSED, VEHICLE_TOO_SMALL
+        or QTY_EXCEEDS_REQUEST.
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HoldItemRequest'
+      responses:
+        '201':
+          description: Held
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Reservation'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /api/reservations/{reservationId}:
+    parameters:
+      - $ref: '#/components/parameters/ReservationId'
+    get:
+      operationId: getReservation
+      tags: [reservations]
+      summary: One reservation with its transition history
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Reservation'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/reservations/{reservationId}/confirm:
+    parameters:
+      - $ref: '#/components/parameters/ReservationId'
+    post:
+      operationId: confirmReservation
+      tags: [reservations]
+      summary: The receiver confirms a HELD reservation (HELD → CONFIRMED)
+      description: |
+        Succeeds only while the server clock is before `holdExpiresAt`. Confirm and expiry are both conditional state
+        updates on the same row, so exactly one wins. If expiry wins (or the time has passed but the scheduler has
+        not run yet), the reservation becomes EXPIRED, its quantity is restored once, and the call fails with
+        409 HOLD_EXPIRED.
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200':
+          description: Confirmed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Reservation'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /api/reservations/{reservationId}/cancel:
+    parameters:
+      - $ref: '#/components/parameters/ReservationId'
+    post:
+      operationId: cancelReservation
+      tags: [reservations]
+      summary: Cancel a HELD or CONFIRMED reservation (→ RELEASED) and restore its quantity
+      description: Any other status fails with 409 INVALID_TRANSITION.
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200':
+          description: Released
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Reservation'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /api/reservations/{reservationId}/handover:
+    parameters:
+      - $ref: '#/components/parameters/ReservationId'
+    post:
+      operationId: submitHandoverPhoto
+      tags: [handover]
+      summary: Recount a CONFIRMED reservation from one pickup photo
+      description: |
+        SAM 3.1 counts the items in the photo and the server writes a `handover_log` row.
+        - Count equals the reserved quantity: the reservation becomes HANDED_OVER with `handedOverQty` = quantity,
+          the log row gets `accepted_qty` at once, and the reuse is recorded. No `resolveHandover` call follows.
+        - Otherwise: the result is MISMATCH and the reservation stays CONFIRMED. The person either retakes the photo
+          (a new call with a new Idempotency-Key; the newest log row supersedes older ones) or settles it with
+          `resolveHandover`.
+        Only CONFIRMED reservations (INVALID_TRANSITION otherwise) before their pickup deadline (PICKUP_CLOSED).
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [photo]
+              properties:
+                photo:
+                  type: string
+                  format: binary
+      responses:
+        '200':
+          description: Counted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HandoverResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '503':
+          $ref: '#/components/responses/AiUnavailable'
+
+  /api/reservations/{reservationId}/handover/resolve:
+    parameters:
+      - $ref: '#/components/parameters/ReservationId'
+    post:
+      operationId: resolveHandover
+      tags: [handover]
+      summary: A person settles a count mismatch and completes the handover
+      description: |
+        Only after a photo count: the reservation must be CONFIRMED and its newest `handover_log` row must be
+        MISMATCH, otherwise 409 INVALID_TRANSITION. A handover can never complete without a SAM 3.1 recount.
+        `acceptedQty` greater than the reserved quantity fails with 400 INVALID_INPUT.
+
+        In one transaction: the newest MISMATCH log row gets `accepted_qty`, the reservation becomes HANDED_OVER
+        with `handedOverQty` = `acceptedQty`, the unreceived remainder (quantity − acceptedQty) returns to the
+        item's availableQty, and the reuse of `acceptedQty` is recorded. The result status is always COMPLETED.
+        If nothing was received, use `cancelReservation` instead.
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResolveHandoverRequest'
+      responses:
+        '200':
+          description: Handed over
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HandoverResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /api/stats/reuse:
+    get:
+      operationId: getReuseStats
+      tags: [stats]
+      summary: Reused quantities per category and per event
+      parameters:
+        - name: eventId
+          in: query
+          description: Limit to one event
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReuseStats'
+
 components:
+  parameters:
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      description: Client-generated UUID, one per user action, reused on retry of that action
+      schema:
+        type: string
+        format: uuid
+    EventId:
+      name: eventId
+      in: path
+      required: true
+      schema:
+        type: integer
+        format: int64
+    DraftId:
+      name: draftId
+      in: path
+      required: true
+      schema:
+        type: integer
+        format: int64
+    ItemId:
+      name: itemId
+      in: path
+      required: true
+      schema:
+        type: integer
+        format: int64
+    RequestId:
+      name: requestId
+      in: path
+      required: true
+      schema:
+        type: integer
+        format: int64
+    ReservationId:
+      name: reservationId
+      in: path
+      required: true
+      schema:
+        type: integer
+        format: int64
+
+  responses:
+    BadRequest:
+      description: Invalid input or missing Idempotency-Key (INVALID_INPUT)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    NotFound:
+      description: Not found (NOT_FOUND)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Conflict:
+      description: |
+        Business rule or state conflict: QTY_UNAVAILABLE, QTY_EXCEEDS_REQUEST, PICKUP_CLOSED, VEHICLE_TOO_SMALL,
+        INVALID_TRANSITION, HOLD_EXPIRED, REQUEST_ALREADY_HELD, DRAFT_NOT_READY, DRAFT_ALREADY_CONFIRMED,
+        IDEMPOTENCY_CONFLICT
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    AiUnavailable:
+      description: The Meta model call failed or timed out and no replay fixture exists (AI_UNAVAILABLE)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
   schemas:
     Health:
       type: object
@@ -32,15 +681,646 @@ components:
           type: string
           enum: [UP]
         aiMode:
-          type: string
-          enum: [live, record, replay]
+          $ref: '#/components/schemas/AiMode'
+
+    AiMode:
+      type: string
+      enum: [live, record, replay]
+
     Error:
       type: object
       required: [code, message]
       properties:
         code:
-          type: string
-          description: Machine-readable reason code (e.g. VEHICLE_TOO_SMALL, QTY_UNAVAILABLE)
+          $ref: '#/components/schemas/ErrorCode'
         message:
           type: string
           description: Korean message shown to the user
+          example: 남은 수량이 부족해요.
+
+    ErrorCode:
+      type: string
+      enum:
+        - INVALID_INPUT
+        - NOT_FOUND
+        - UNSUPPORTED_REQUEST
+        - INTERNAL_ERROR
+        - QTY_UNAVAILABLE
+        - QTY_EXCEEDS_REQUEST
+        - PICKUP_CLOSED
+        - VEHICLE_TOO_SMALL
+        - INVALID_TRANSITION
+        - HOLD_EXPIRED
+        - REQUEST_ALREADY_HELD
+        - DRAFT_NOT_READY
+        - DRAFT_ALREADY_CONFIRMED
+        - IDEMPOTENCY_CONFLICT
+        - AI_UNAVAILABLE
+
+    ItemCategory:
+      type: string
+      description: |
+        The three categories in scope. Every `label` field is derived from this table on the server; clients show it as is.
+
+        | Category | label |
+        |---|---|
+        | DISPLAY_RACK | 진열대 |
+        | STORAGE_BIN | 수납함 |
+        | FOLDING_TABLE | 접이식 테이블 |
+      enum: [DISPLAY_RACK, STORAGE_BIN, FOLDING_TABLE]
+
+    DraftCategory:
+      type: string
+      description: |
+        ItemCategory plus UNKNOWN (label 미분류), which can only appear in intake drafts and must be fixed before confirm
+      enum: [DISPLAY_RACK, STORAGE_BIN, FOLDING_TABLE, UNKNOWN]
+
+    Condition:
+      type: string
+      enum: [GOOD, FAIR, POOR]
+
+    VehicleType:
+      type: string
+      description: |
+        Ordered by cargo space, smallest first. An item fits a vehicle when its size fits that vehicle's cargo
+        constants AND the vehicle is at least the item's `vehicleRequirement` (if set).
+      enum: [SEDAN, SUV, VAN, TRUCK_1T]
+
+    SizeCm:
+      type: object
+      required: [width, depth, height]
+      properties:
+        width:
+          type: integer
+          minimum: 1
+        depth:
+          type: integer
+          minimum: 1
+        height:
+          type: integer
+          minimum: 1
+      example: { width: 90, depth: 40, height: 180 }
+
+    BoundingBox:
+      type: object
+      description: Normalized to the photo, origin top-left
+      required: [x, y, width, height]
+      properties:
+        x:
+          type: number
+          minimum: 0
+          maximum: 1
+        y:
+          type: number
+          minimum: 0
+          maximum: 1
+        width:
+          type: number
+          minimum: 0
+          maximum: 1
+        height:
+          type: number
+          minimum: 0
+          maximum: 1
+
+    Organization:
+      type: object
+      required: [id, name]
+      properties:
+        id:
+          type: integer
+          format: int64
+        name:
+          type: string
+          example: 성수 플리마켓 운영팀
+
+    Event:
+      type: object
+      required: [id, name, organizationId, venue, teardownDeadline]
+      properties:
+        id:
+          type: integer
+          format: int64
+        name:
+          type: string
+          example: 성수 가을 팝업
+        organizationId:
+          type: integer
+          format: int64
+          description: The giver that runs the event
+        venue:
+          type: string
+          example: 서울 성동구
+        teardownDeadline:
+          type: string
+          format: date-time
+          description: Booths must be cleared by this time. Item pickup deadlines default to it and may not exceed it
+
+    IntakeStatus:
+      type: string
+      enum: [PROCESSING, READY, FAILED, CONFIRMED]
+
+    IntakeStage:
+      type: string
+      description: SEGMENT = SAM 3.1 separation and counting; ESTIMATE = Muse Spark category, size and condition
+      enum: [SEGMENT, ESTIMATE]
+
+    IntakeDraft:
+      type: object
+      required: [id, eventId, status, lines, createdAt]
+      properties:
+        id:
+          type: integer
+          format: int64
+        eventId:
+          type: integer
+          format: int64
+        status:
+          $ref: '#/components/schemas/IntakeStatus'
+        stage:
+          description: Current stage while PROCESSING, the failed stage when FAILED, for the progress UI
+          $ref: '#/components/schemas/IntakeStage'
+        failureMessage:
+          type: string
+          description: Korean, shown to the user when status is FAILED
+        lines:
+          type: array
+          description: One line per category. Empty until READY
+          items:
+            $ref: '#/components/schemas/DraftLine'
+        createdAt:
+          type: string
+          format: date-time
+
+    DraftLine:
+      type: object
+      required: [lineId, category, label, count, boxes, condition, confidence, needsReview]
+      properties:
+        lineId:
+          type: integer
+          format: int64
+        category:
+          $ref: '#/components/schemas/DraftCategory'
+        label:
+          type: string
+          description: Korean category name for display
+          example: 진열대
+        count:
+          type: integer
+          minimum: 0
+          description: Items SAM 3.1 separated for this category
+          example: 4
+        boxes:
+          type: array
+          description: One box per counted item, for the overlay
+          items:
+            $ref: '#/components/schemas/BoundingBox'
+        sizeCm:
+          $ref: '#/components/schemas/SizeCm'
+        condition:
+          $ref: '#/components/schemas/Condition'
+        confidence:
+          type: number
+          minimum: 0
+          maximum: 1
+          description: Muse Spark confidence for category, size and condition
+          example: 0.86
+        needsReview:
+          type: boolean
+          description: True when confidence is below the configured threshold or category is UNKNOWN
+
+    ConfirmIntakeRequest:
+      type: object
+      required: [lines]
+      properties:
+        lines:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/ConfirmLine'
+        pickupDeadline:
+          type: string
+          format: date-time
+          description: Defaults to the event teardown deadline; may not be later than it
+        vehicleRequirement:
+          description: Smallest vehicle the giver requires for pickup, e.g. from "승합차 필요". Absent = no requirement
+          $ref: '#/components/schemas/VehicleType'
+        conditionsTranscript:
+          type: string
+          description: Original spoken or typed giver conditions, kept for display
+
+    ConfirmLine:
+      type: object
+      required: [lineId, category, quantity, sizeCm, condition]
+      properties:
+        lineId:
+          type: integer
+          format: int64
+        category:
+          $ref: '#/components/schemas/ItemCategory'
+        quantity:
+          type: integer
+          minimum: 1
+        sizeCm:
+          $ref: '#/components/schemas/SizeCm'
+        condition:
+          $ref: '#/components/schemas/Condition'
+
+    ConditionContext:
+      type: string
+      description: GIVER = conditions attached to leftover items; RECEIVER = a pickup request
+      enum: [GIVER, RECEIVER]
+
+    Conditions:
+      type: object
+      description: Every field is optional; Spark fills only what was said
+      properties:
+        category:
+          $ref: '#/components/schemas/ItemCategory'
+        quantity:
+          type: integer
+          minimum: 1
+        vehicleType:
+          $ref: '#/components/schemas/VehicleType'
+        pickupDeadline:
+          type: string
+          format: date-time
+          description: GIVER = must be picked up by; RECEIVER = can pick up by
+        purpose:
+          type: string
+          example: 주말 행사 진열용
+
+    ConditionInterpretation:
+      type: object
+      required: [context, transcript, conditions, missingFields]
+      properties:
+        context:
+          $ref: '#/components/schemas/ConditionContext'
+        transcript:
+          type: string
+          description: Voice Transcribe output, or the text as sent
+          example: 주말 행사용 진열대 필요하고 승용차만 있어요
+        conditions:
+          $ref: '#/components/schemas/Conditions'
+        missingFields:
+          type: array
+          description: Required fields for the next step that were not said (RECEIVER - category, vehicleType)
+          items:
+            type: string
+            enum: [category, quantity, vehicleType, pickupDeadline, purpose]
+
+    CreatePickupRequest:
+      type: object
+      required: [organizationId, category, quantity, vehicleType]
+      properties:
+        organizationId:
+          type: integer
+          format: int64
+          description: The receiving organization
+        category:
+          $ref: '#/components/schemas/ItemCategory'
+        quantity:
+          type: integer
+          minimum: 1
+          description: The UI defaults to 1 when not said
+        vehicleType:
+          $ref: '#/components/schemas/VehicleType'
+        pickupDeadline:
+          type: string
+          format: date-time
+          description: When the receiver can pick up by. Informational; item deadlines are what the server enforces
+        purpose:
+          type: string
+        transcript:
+          type: string
+          description: Original spoken or typed request, kept for display and for the agent
+
+    PickupRequest:
+      type: object
+      required: [id, organizationId, category, quantity, vehicleType, createdAt]
+      properties:
+        id:
+          type: integer
+          format: int64
+        organizationId:
+          type: integer
+          format: int64
+        category:
+          $ref: '#/components/schemas/ItemCategory'
+        quantity:
+          type: integer
+        vehicleType:
+          $ref: '#/components/schemas/VehicleType'
+        pickupDeadline:
+          type: string
+          format: date-time
+        purpose:
+          type: string
+        transcript:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+
+    Item:
+      type: object
+      required: [id, eventId, organizationId, category, label, sizeCm, condition, totalQty, availableQty, pickupDeadline]
+      properties:
+        id:
+          type: integer
+          format: int64
+        eventId:
+          type: integer
+          format: int64
+        organizationId:
+          type: integer
+          format: int64
+          description: The giver
+        category:
+          $ref: '#/components/schemas/ItemCategory'
+        label:
+          type: string
+          example: 진열대
+        sizeCm:
+          $ref: '#/components/schemas/SizeCm'
+        condition:
+          $ref: '#/components/schemas/Condition'
+        totalQty:
+          type: integer
+          minimum: 0
+        availableQty:
+          type: integer
+          minimum: 0
+          description: |
+            totalQty − Σ quantity of HELD and CONFIRMED reservations − Σ handedOverQty of HANDED_OVER reservations.
+            RELEASED and EXPIRED reservations do not count.
+        pickupDeadline:
+          type: string
+          format: date-time
+        vehicleRequirement:
+          description: Smallest vehicle the giver requires. Absent = no requirement beyond size
+          $ref: '#/components/schemas/VehicleType'
+        conditionsTranscript:
+          type: string
+          description: The giver's original spoken or typed conditions, shown on the item card
+
+    AllocationStatus:
+      type: string
+      enum: [HELD, NO_MATCH]
+
+    AllocationResult:
+      type: object
+      required: [requestId, status, explanation, reservations, rejections, alternatives, toolCalls]
+      properties:
+        requestId:
+          type: integer
+          format: int64
+        status:
+          $ref: '#/components/schemas/AllocationStatus'
+        explanation:
+          type: string
+          description: Korean summary for the receiver, by Muse Spark or a server template if the model failed after a hold
+          example: 높이 180cm라 승용차에 실을 수 없어요. 대신 접이식 테이블 3개 어떠세요?
+        reservations:
+          type: array
+          description: Reservations the agent held (status HELD only)
+          items:
+            $ref: '#/components/schemas/Reservation'
+        rejections:
+          type: array
+          description: Candidates the server rejected, with the reason
+          items:
+            $ref: '#/components/schemas/Rejection'
+        alternatives:
+          type: array
+          description: Items the receiver can hold instead with `holdItem`
+          items:
+            $ref: '#/components/schemas/Alternative'
+        toolCalls:
+          type: array
+          description: The agent's tool calls in order, shown in the UI so the server's decisions are visible
+          items:
+            $ref: '#/components/schemas/ToolCall'
+
+    RejectionCode:
+      type: string
+      enum: [VEHICLE_TOO_SMALL, QTY_UNAVAILABLE, QTY_EXCEEDS_REQUEST, PICKUP_CLOSED, CATEGORY_MISMATCH]
+
+    Rejection:
+      type: object
+      required: [itemId, code, message]
+      properties:
+        itemId:
+          type: integer
+          format: int64
+        code:
+          $ref: '#/components/schemas/RejectionCode'
+        message:
+          type: string
+          example: 높이 180cm라 승용차에 실을 수 없어요.
+        limitingDimension:
+          type: string
+          description: Set for VEHICLE_TOO_SMALL when size (not the giver's requirement) is the reason
+          enum: [width, depth, height]
+
+    Alternative:
+      type: object
+      required: [item, quantity, reason]
+      properties:
+        item:
+          $ref: '#/components/schemas/Item'
+        quantity:
+          type: integer
+          minimum: 1
+          description: Quantity the agent suggests holding, within the request quantity
+        reason:
+          type: string
+          example: 접이식이라 승용차에 실을 수 있어요.
+
+    ToolCall:
+      type: object
+      required: [name, arguments, outcome]
+      properties:
+        name:
+          type: string
+          enum: [searchCandidates, checkVehicleFit, holdQuantity]
+        arguments:
+          type: object
+          additionalProperties: true
+        outcome:
+          type: string
+          description: REJECTED only for checkVehicleFit and holdQuantity calls the server refused
+          enum: [OK, REJECTED]
+        code:
+          description: Why the server refused, when REJECTED
+          $ref: '#/components/schemas/RejectionCode'
+        summary:
+          type: string
+          description: Short Korean description of the result
+
+    ReservationStatus:
+      type: string
+      description: |
+        | Transition | Trigger | Actor | Quantity effect |
+        |---|---|---|---|
+        | → HELD | `holdQuantity` tool or `holdItem` | AGENT / USER | −quantity |
+        | HELD → CONFIRMED | `confirmReservation` before `holdExpiresAt` | USER | none |
+        | HELD → EXPIRED | now ≥ `holdExpiresAt` (scheduler, or lazily on confirm) | SCHEDULER | +quantity |
+        | HELD, CONFIRMED → RELEASED | `cancelReservation` | USER | +quantity |
+        | CONFIRMED → RELEASED | now ≥ `pickupDeadline` without handover | SCHEDULER | +quantity |
+        | CONFIRMED → HANDED_OVER | handover count matches, or `resolveHandover` | HANDOVER / USER | +(quantity − handedOverQty) |
+
+        `holdExpiresAt` = min(hold time + hold TTL, item `pickupDeadline`), so HELD never outlives the pickup deadline.
+        The hold TTL is 15 minutes (server setting `afterbooth.hold-ttl`, default `PT15M`).
+        Every quantity effect is applied exactly once, in the same transaction as the status change.
+        Any other transition fails with INVALID_TRANSITION.
+      enum: [HELD, CONFIRMED, HANDED_OVER, RELEASED, EXPIRED]
+
+    HoldItemRequest:
+      type: object
+      description: |
+        Hold rules, shared by `holdItem` and the agent's `holdQuantity` tool:
+        - item.availableQty ≥ quantity (conditional update; QTY_UNAVAILABLE)
+        - now < item.pickupDeadline (PICKUP_CLOSED)
+        - the item fits request.vehicleType (VEHICLE_TOO_SMALL)
+        - Σ quantity of the request's HELD and CONFIRMED reservations + quantity ≤ request.quantity (QTY_EXCEEDS_REQUEST)
+
+        Holds for the same request are serialized: the server locks the pickup request row before reading its
+        active reservations and keeps the lock until the new reservation is written, so two concurrent holds on
+        different items cannot together exceed request.quantity.
+      required: [requestId, itemId, quantity]
+      properties:
+        requestId:
+          type: integer
+          format: int64
+        itemId:
+          type: integer
+          format: int64
+        quantity:
+          type: integer
+          minimum: 1
+
+    Reservation:
+      type: object
+      required: [id, requestId, organizationId, itemId, itemLabel, quantity, status, holdExpiresAt, pickupDeadline, createdAt]
+      properties:
+        id:
+          type: integer
+          format: int64
+        requestId:
+          type: integer
+          format: int64
+        organizationId:
+          type: integer
+          format: int64
+          description: The receiving organization
+        itemId:
+          type: integer
+          format: int64
+        itemLabel:
+          type: string
+          example: 진열대
+        quantity:
+          type: integer
+          minimum: 1
+          description: Reserved quantity
+        handedOverQty:
+          type: integer
+          minimum: 1
+          description: Quantity actually handed over. Set only when HANDED_OVER
+        status:
+          $ref: '#/components/schemas/ReservationStatus'
+        holdExpiresAt:
+          type: string
+          format: date-time
+        pickupDeadline:
+          type: string
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+        transitions:
+          type: array
+          description: Transition history, included only by `getReservation`
+          items:
+            $ref: '#/components/schemas/Transition'
+
+    Transition:
+      type: object
+      required: [to, at, actor]
+      properties:
+        from:
+          $ref: '#/components/schemas/ReservationStatus'
+        to:
+          $ref: '#/components/schemas/ReservationStatus'
+        at:
+          type: string
+          format: date-time
+        actor:
+          type: string
+          enum: [AGENT, USER, SCHEDULER, HANDOVER]
+
+    HandoverStatus:
+      type: string
+      enum: [COMPLETED, MISMATCH]
+
+    HandoverResult:
+      type: object
+      required: [reservation, status, expectedQty, countedQty, boxes]
+      properties:
+        reservation:
+          $ref: '#/components/schemas/Reservation'
+        status:
+          $ref: '#/components/schemas/HandoverStatus'
+        expectedQty:
+          type: integer
+          description: The reserved quantity
+        countedQty:
+          type: integer
+          description: SAM 3.1 count from the photo
+        boxes:
+          type: array
+          items:
+            $ref: '#/components/schemas/BoundingBox'
+
+    ResolveHandoverRequest:
+      type: object
+      required: [acceptedQty]
+      properties:
+        acceptedQty:
+          type: integer
+          minimum: 1
+          description: Quantity actually handed over, 1 to the reserved quantity (more → 400 INVALID_INPUT)
+
+    ReuseStats:
+      type: object
+      required: [totalReused, byCategory, byEvent]
+      properties:
+        totalReused:
+          type: integer
+          example: 7
+        byCategory:
+          type: array
+          items:
+            type: object
+            required: [category, label, quantity]
+            properties:
+              category:
+                $ref: '#/components/schemas/ItemCategory'
+              label:
+                type: string
+              quantity:
+                type: integer
+        byEvent:
+          type: array
+          items:
+            type: object
+            required: [eventId, eventName, quantity]
+            properties:
+              eventId:
+                type: integer
+                format: int64
+              eventName:
+                type: string
+              quantity:
+                type: integer
