@@ -63,6 +63,17 @@ Bad: `update code`, `fix bug`, `WIP`, `feat: 수량 차감 추가`
 - Contract changes (`contract/`) go in their own PR or their own first commit, and are recorded in `docs/DECISIONS.md`.
 - Fill in the PR template. Paste the verification commands you actually ran and their results.
 - Before requesting merge: Claude `reviewer` agent and Codex review are both done (see [REVIEW_GUIDE.md](REVIEW_GUIDE.md)).
+- CI must be green. The PR title is checked like a commit subject, because squash merge makes it the commit on `main`.
+
+### CI checks
+
+| Check | What it runs |
+|---|---|
+| `backend` | `./gradlew build`: compile, spotlessCheck, every test including Testcontainers |
+| `frontend` | `npm ci`, then build (regenerates the client from the contract), test, lint, format:check |
+| `hygiene` | secret scan of changed files, PR title as an English Conventional Commit |
+
+CI runs with `AI_MODE=replay` and no Meta key.
 
 ## Backend code
 

@@ -51,7 +51,7 @@ Run fully automated, but stop and report at these points only.
 2. Create a branch `<type>/<issue>-<slug>` (e.g. `feat/12-conditional-hold`) in a worktree.
 3. Commit → `git push -u origin <branch>` → `gh pr create` (body says `Closes #N`, fill in the PR template).
 4. Three reviews: Claude `reviewer` agent → Codex (`/codex:review --base main`, plus `/codex:adversarial-review` for risky changes) → teammate (optional). Criteria in `docs/REVIEW_GUIDE.md`.
-5. main is protected (PR required, 0 approvals, squash merge only). A human merges.
+5. CI (`.github/workflows/ci.yml`) must be green: `backend`, `frontend` and `hygiene` are required checks. main is protected (PR required, 0 approvals, squash merge only). A human merges.
 
 ## How we work
 
