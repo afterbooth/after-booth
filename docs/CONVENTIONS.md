@@ -92,6 +92,8 @@ com.afterbooth
     └── dto/                # request/response records
 ```
 
+Tables follow [`ERD.md`](ERD.md). Migrations are named `V<yyyyMMddHHmm>__<what>.sql` so two branches never pick the same version.
+
 These rules are enforced by `backend/src/test/java/com/afterbooth/ArchitectureTest.java`:
 
 - Controllers do not touch repositories or entities.
