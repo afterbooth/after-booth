@@ -13,3 +13,4 @@
 | D-007 | 2026-10-30 | live/record 호출은 PreToolUse hook이 사람에게 묻는다 (`AB_LIVE_GATE=ask`). 누적 $50마다 STOP | 풀자동에서 크레딧이 새는 걸 막는 유일한 사람 게이트 |
 | D-008 | 2026-10-30 | Meta 키 2개를 역할로 나눔: A(개발·스파이크·record), B(데모 리허설·녹화·라이브 결선 예비) | docs/BUDGET.md |
 | D-009 | 2026-10-30 | fine-tuning(학습)은 계획에 넣지 않음. 필요하면 G0에서 스파이크 결과로 다시 판단 | 6일 일정, 정확도 개선은 프롬프트·스키마·SAM 조합으로 충분할 가능성이 큼 |
+| D-010 | 2026-10-30 | 공식 문서 기준 기본값: base `https://api.meta.ai/v1`(OpenAI 호환, `Authorization: Bearer`), Spark `muse-spark-1.3`, SAM `sam-3.1`(`/v1/responses`, `/v1/files`), Transcribe `muse-voice-transcribe-1.0`(`/v1/asr/transcribe`, 실시간 `wss://api.meta.ai/v1/asr/realtime`) | dev.meta.ai/docs 확인. 실제 사용 가능 여부는 0-5a `GET /v1/models`로 재확인 |
