@@ -9,6 +9,7 @@ export default defineConfig({
       target: 'src/api/generated/afterbooth.ts',
       schemas: 'src/api/generated/model',
       client: 'fetch',
+      override: { mutator: { path: 'src/api/http.ts', name: 'http' } },
       mock: true,
       clean: true,
     },
