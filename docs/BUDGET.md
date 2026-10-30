@@ -20,8 +20,8 @@ Current key: **A**
 | Stage | Key | Estimate | Notes |
 |---|---|---|---|
 | Phase 0 spike | A | ≤ $15 | Model list is free; 5–10 calls per capability. Save responses straight to fixtures/ |
-| Phase 1 development | A | ≤ $25 | Replay by default. Live only while ai-pipeline tunes prompts and schemas |
-| Phase 2 live E2E + record | A | ≤ $30 | Scenario once or twice → record → replay afterwards |
+| Phase 1 development | A | ≤ $5 (D-033) | Replay by default. Live only while ai-pipeline tunes prompts and schemas |
+| Phase 2 live E2E + record | A | ≤ $10 (D-033) | Scenario once or twice → record → replay afterwards |
 | Demo rehearsal and recording | B | ≤ $30 | Record in live mode, fall back to replay on failure |
 | Finals reserve | B | the rest | 11/9 live finals |
 
