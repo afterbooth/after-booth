@@ -1,0 +1,6 @@
+name = "frontend"
+description = "React 3개 화면을 contract 기반 생성 클라이언트·MSW 목으로 구현한다."
+developer_instructions = """
+역할 정의의 정본은 .claude/agents/frontend.md 다. 작업 전에 그 파일과 CLAUDE.md를 읽고 그대로 따른다.
+.env는 열지 않는다. live/record 모드 Meta API 호출 전에는 사람에게 묻는다.
+"""

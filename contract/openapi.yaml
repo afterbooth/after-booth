@@ -1,0 +1,45 @@
+openapi: 3.1.0
+info:
+  title: AfterBooth API
+  version: 0.0.1
+  description: |
+    계약의 기준(SSOT). 프론트는 이 파일에서 클라이언트와 MSW 목을 생성한다 (frontend `npm run gen:api`).
+    지금은 생성 파이프라인 확인용 최소본이다. Phase 0-4에서 재고·등록 초안·수령 요청·배정(HOLD/확정/취소)·인계·통계 API를 채운다.
+    계약 변경은 contract/만 담은 별도 커밋 + docs/DECISIONS.md 기록.
+servers:
+  - url: /
+paths:
+  /api/health:
+    get:
+      operationId: getHealth
+      tags: [system]
+      summary: 서버 상태
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Health'
+components:
+  schemas:
+    Health:
+      type: object
+      required: [status, aiMode]
+      properties:
+        status:
+          type: string
+          enum: [UP]
+        aiMode:
+          type: string
+          enum: [live, record, replay]
+    Error:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+          description: 기계 판독용 사유 코드 (예 VEHICLE_TOO_SMALL, QTY_UNAVAILABLE)
+        message:
+          type: string
+          description: 사용자에게 보여줄 한국어 메시지

@@ -1,0 +1,39 @@
+### 시크릿 — 절대 커밋 금지 ###
+.env
+.env.*
+!.env.example
+
+### Gradle / Java ###
+.gradle/
+build/
+!gradle/wrapper/gradle-wrapper.jar
+out/
+bin/
+hs_err_pid*.log
+replay_pid*.log
+
+### Node / Frontend ###
+node_modules/
+dist/
+coverage/
+*.local
+frontend/src/api/generated/
+
+### Playwright ###
+e2e/test-results/
+e2e/playwright-report/
+e2e/.auth/
+
+### IDE / OS ###
+.idea/
+*.iml
+.vscode/
+.DS_Store
+Thumbs.db
+
+### Claude Code 로컬 ###
+.claude/settings.local.json
+.claude/worktrees/
+
+### spike 측정 원본 (샘플 사진·음성은 직접 확인 후에만 커밋) ###
+spike/out/

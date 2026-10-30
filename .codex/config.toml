@@ -1,0 +1,4 @@
+# 저장소에는 멀티에이전트 설정만 고정한다. 모델·승인 정책·인증은 각자 ~/.codex/config.toml에 둔다.
+[agents]
+enabled = true
+max_concurrent_threads_per_session = 3

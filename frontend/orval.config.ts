@@ -1,0 +1,16 @@
+import { defineConfig } from 'orval'
+
+// contract/openapi.yaml → fetch 클라이언트 + MSW 목. 생성물은 커밋하지 않는다 (npm run gen:api)
+export default defineConfig({
+  afterbooth: {
+    input: { target: '../contract/openapi.yaml' },
+    output: {
+      mode: 'single',
+      target: 'src/api/generated/afterbooth.ts',
+      schemas: 'src/api/generated/model',
+      client: 'fetch',
+      mock: true,
+      clean: true,
+    },
+  },
+})

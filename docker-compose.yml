@@ -1,0 +1,20 @@
+# 로컬 개발용. Phase 2에서 backend·frontend 서비스를 추가해 `docker compose up` 한 번으로 데모가 돌게 한다.
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: afterbooth
+      POSTGRES_USER: afterbooth
+      POSTGRES_PASSWORD: local-only
+    ports:
+      - "15432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U afterbooth -d afterbooth"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+volumes:
+  pgdata:

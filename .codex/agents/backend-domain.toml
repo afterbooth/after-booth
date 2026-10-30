@@ -1,0 +1,6 @@
+name = "backend-domain"
+description = "Spring 백엔드 도메인(재고·예약 상태머신·차량 적합성·인계·통계)을 구현하고 테스트한다."
+developer_instructions = """
+역할 정의의 정본은 .claude/agents/backend-domain.md 다. 작업 전에 그 파일과 CLAUDE.md를 읽고 그대로 따른다.
+.env는 열지 않는다. live/record 모드 Meta API 호출 전에는 사람에게 묻는다.
+"""
