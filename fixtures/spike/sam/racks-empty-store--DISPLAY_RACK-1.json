@@ -1,0 +1,90 @@
+{
+  "request": {
+    "method": "POST",
+    "url": "https://api.meta.ai/v1/responses",
+    "body": {
+      "model": "sam-3.1",
+      "input": [
+        {
+          "type": "message",
+          "role": "user",
+          "content": [
+            {
+              "type": "input_text",
+              "text": "display rack"
+            },
+            {
+              "type": "input_image",
+              "image_url": {
+                "redactedDataUrl": "data:image/jpeg;base64",
+                "sha256": "d09eac3ae408f891334204567b8f6526b255eb0b463a475c74c4c0e1c28b06f8",
+                "bytes": 244660
+              }
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "include_confidence": "true",
+        "mask_encoding": "one_bit"
+      }
+    }
+  },
+  "response": {
+    "status": 200,
+    "latencyMs": 1100,
+    "body": {
+      "metadata": {
+        "include_confidence": "true",
+        "mask_encoding": "one_bit"
+      },
+      "top_logprobs": 0,
+      "temperature": 1,
+      "top_p": 1,
+      "service_tier": "auto",
+      "model": "sam-3.1",
+      "background": false,
+      "tools": [],
+      "tool_choice": "auto",
+      "truncation": "disabled",
+      "id": "resp_6ae4e70c70f16f9c34a546da",
+      "object": "response",
+      "status": "completed",
+      "created_at": 1793386252,
+      "completed_at": 1793386252,
+      "error": null,
+      "incomplete_details": null,
+      "output": [
+        {
+          "type": "message",
+          "id": "msg_cac7bd55-122c-4bce-a32b-1f96a73f0c5a",
+          "role": "assistant",
+          "content": [
+            {
+              "type": "output_text",
+              "text": "<0f>0<|box;x1=579;y1=414;x2=687;y2=528;w=1280;h=768;c=0.827957034111023|><|mask;x=0;y=0;c=0.827957034111023;data=115,109,!!!!!eJ?]yTIb$?R8IAjEb{SU&w9#elu![iJb86aSbtV$EM!CmCht-)+vG-[Ar0yjysxP*]_c'O6)2DMYFiR|>,1<|box;x1=1170;y1=413;x2=1279;y2=685;w=1280;h=768;c=0.7387754917144775|><|mask;x=0;y=0;c=0.7387754917144775;data=273,110,!!!!!wD-kQ^8ZO]:CakAZbq4i3S8m0{206_TQWv^=/k-)$KN8k1i68@JX'o(tf)#UfEm5(Q8lAV^P/EPY.L5ZxDZ!Bm!9`dhu#=1l'](Ag|>,2<|box;x1=1011;y1=418;x2=1075;y2=523;w=1280;h=768;c=0.7620818018913269|><|mask;x=0;y=0;c=0.7620818018913269;data=106,65,!!!!!OF06LR3fLwG^B)b(Eym6T9oG5fh&_OeIF734s)q?`]9LEtv$iO_!!|>,3<|box;x1=344;y1=403;x2=579;y2=648;w=1280;h=768;c=0.8358974456787109|><|mask;x=0;y=0;c=0.8358974456787109;data=246,236,!!!!#bBAYs-Ipgqg]prATIJEJIKO(hvf_%U/OD`UW$xXcJYg'dtuRu87mR1ZcY9klz5%_wc`8BZDedVCBS@hw2Tx]bg6$hfEY^M42S$wgjKzj):thc7R?+p*l2q&0t^Sv0g7`WdkD-(gnqBFkVR#rh&'Lsf%x6Tw(DQH$5k'EPb!!(!7of@1j]w/4p|>,4<|box;x1=275;y1=408;x2=288;y2=510;w=1280;h=768;c=0.507692277431488|><|mask;x=0;y=0;c=0.507692277431488;data=103,14,!!!!!EIbI_]fwa_^3C{PNK^vBK+#UeKffBqZq=^IOBy+k|>,5<|box;x1=3;y1=377;x2=264;y2=767;w=1280;h=768;c=0.8476190567016602|><|mask;x=0;y=0;c=0.8476190567016602;data=391,262,!!!!#VE=${k/0]e+%iZDd[gFNA:oOgCv0r)BWTJAVmAL9Whb8wGVo@uI_#-!DmK^Uy'KgC/Ctvl9]CmUy/8K{Sw-?dzRGWc3:]{XhNFS+2rYo_8V)P2YsVx%[2&it^FvwQ?'2#N{r^GlIeZ$:q(ntwibN#1=`d(gIV{&llTqb-b!!|>,6<|box;x1=679;y1=414;x2=852;y2=532;w=1280;h=768;c=0.8552036285400391|><|mask;x=0;y=0;c=0.8552036285400391;data=119,174,!!!!!zGOJIWtlbKRWt$cNk[-0]nPlMb)Luhs348iCP=rXT=Su#+^+8d#dpvVyL'Je*/{AIrvVJKzt3XEs4:+NmgD*1Hg57mUqnC0EvfT#8vi:!|>,7<|box;x1=850;y1=420;x2=993;y2=531;w=1280;h=768;c=0.7064220309257507|><|mask;x=0;y=0;c=0.7064220309257507;data=112,144,!!!!!rCOkeI)gm3[/B_ne-*gm?.9oloLHTx:(odJ)2:gpzb*'_WeCtjk12FIdNJ&+v]K%$(v][OM8_E4eGfho9TC![Fb=Mj5I5h1|>,8<|box;x1=284;y1=418;x2=355;y2=561;w=1280;h=768;c=0.7229437232017517|><|mask;x=0;y=0;c=0.7229437232017517;data=144,72,!!!!!gDX9&A2+b8zqIh#W/RnLL2)YkRTtqtPuMyYmia({4x&Iy7wS^wZm=nH.!Ay^f4.!v`DbF[jnbQrwaAH/R|>\n",
+              "annotations": [],
+              "logprobs": []
+            }
+          ],
+          "status": "completed"
+        }
+      ],
+      "instructions": null,
+      "usage": {
+        "input_tokens": 0,
+        "input_tokens_details": {
+          "cached_tokens": 0
+        },
+        "output_tokens": 0,
+        "output_tokens_details": {
+          "reasoning_tokens": 0
+        },
+        "total_tokens": 0,
+        "images_processed": 1
+      },
+      "parallel_tool_calls": true,
+      "store": true
+    }
+  }
+}

@@ -1,0 +1,31 @@
+{
+  "request": {
+    "method": "POST",
+    "url": "https://api.meta.ai/v1/asr/transcribe",
+    "body": {
+      "request": {
+        "model": "muse-voice-transcribe-1.0",
+        "audioEncoding": "WAV",
+        "mode": "PUSH_TO_TALK",
+        "languageBias": [
+          "Korean"
+        ]
+      },
+      "audio": {
+        "file": "audio-giver-bins-mixed.wav",
+        "sha256": "5ca1597bb7b633dbe736167a5ee1811316caf8a4124519c891bf97f724127355",
+        "bytes": 315406
+      }
+    }
+  },
+  "response": {
+    "status": 200,
+    "latencyMs": 3317,
+    "body": {
+      "sessionId": "voyager/transcribe/83E27765FAAE475093C9F348501BD593",
+      "transcript": "순합함 열두 개 남았어요 십일 월 이 일 오후 세 시 삼십 분까지 가져가 주세요 SUV 이상이면 됩니다 됩니다",
+      "audioDurationMs": 9920,
+      "turns": []
+    }
+  }
+}

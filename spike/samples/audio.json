@@ -1,0 +1,41 @@
+{
+  "_comment": "Scripts read by Windows TTS (Microsoft Heami Desktop, ko-KR) into RIFF mono 16-bit PCM 16 kHz WAV. text is the CER reference. expected is the ConditionInterpretation.conditions we want from Spark, with now = 2026-10-31T15:00:00+09:00 (a Saturday) in Asia/Seoul.",
+  "now": "2026-10-31T15:00:00+09:00",
+  "clips": [
+    {
+      "id": "giver-van-tonight",
+      "file": "audio-giver-van-tonight.wav",
+      "context": "GIVER",
+      "text": "오늘 저녁 8시까지 철수해야 하고 승합차가 필요해요",
+      "expected": { "vehicleType": "VAN", "pickupDeadline": "2026-10-31T20:00:00+09:00" }
+    },
+    {
+      "id": "receiver-racks-sedan",
+      "file": "audio-receiver-racks-sedan.wav",
+      "context": "RECEIVER",
+      "text": "주말 행사에 쓸 진열대 세 개 필요한데 승용차밖에 없어요",
+      "expected": { "category": "DISPLAY_RACK", "quantity": 3, "vehicleType": "SEDAN" }
+    },
+    {
+      "id": "receiver-tables-truck",
+      "file": "audio-receiver-tables-truck.wav",
+      "context": "RECEIVER",
+      "text": "접이식 테이블 다섯 개, 내일 오전 10시 전에 1톤 트럭으로 가져갈게요",
+      "expected": { "category": "FOLDING_TABLE", "quantity": 5, "vehicleType": "TRUCK_1T", "pickupDeadline": "2026-11-01T10:00:00+09:00" }
+    },
+    {
+      "id": "giver-bins-mixed",
+      "file": "audio-giver-bins-mixed.wav",
+      "context": "GIVER",
+      "text": "수납함 12개 남았어요. 11월 2일 오후 3시 30분까지 가져가 주세요. SUV 이상이면 됩니다",
+      "expected": { "category": "STORAGE_BIN", "quantity": 12, "vehicleType": "SUV", "pickupDeadline": "2026-11-02T15:30:00+09:00" }
+    },
+    {
+      "id": "receiver-bins-van",
+      "file": "audio-receiver-bins-van.wav",
+      "context": "RECEIVER",
+      "text": "모레 오전 9시 반까지 수납함 20개 가져갈 수 있어요. 차는 승합차예요",
+      "expected": { "category": "STORAGE_BIN", "quantity": 20, "vehicleType": "VAN", "pickupDeadline": "2026-11-02T09:30:00+09:00" }
+    }
+  ]
+}

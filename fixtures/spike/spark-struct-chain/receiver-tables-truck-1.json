@@ -1,0 +1,111 @@
+{
+  "request": {
+    "method": "POST",
+    "url": "https://api.meta.ai/v1/chat/completions",
+    "body": {
+      "model": "muse-spark-1.3",
+      "messages": [
+        {
+          "role": "user",
+          "content": "Turn a spoken Korean equipment hand-off condition into JSON.\nSpeaker: RECEIVER, who wants items. pickupDeadline = the time the receiver can pick up by.\nFill only what was said; omit every other field (never null). Categories: DISPLAY_RACK (진열대, 선반, 랙), STORAGE_BIN (수납함, 박스, 바구니), FOLDING_TABLE (접이식 테이블).\nvehicleType: SEDAN (승용차), SUV, VAN (승합차, 밴), TRUCK_1T (1톤 트럭). \"X 이상\" means the smallest vehicle X.\nResolve relative times in Asia/Seoul against now = 2026-10-31T15:00:00+09:00 (Saturday) and write them as ISO 8601 with the +09:00 offset.\nmissingFields: for RECEIVER list category and vehicleType if they were not said; for GIVER return an empty list.\nTranscript: 저비식 테이블 다섯 개, 내일 오전 오전 열 시 전에 일 톤 트럭으로 가져갈게요."
+        }
+      ],
+      "response_format": {
+        "type": "json_schema",
+        "json_schema": {
+          "name": "ConditionInterpretation",
+          "schema": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "conditions",
+              "missingFields"
+            ],
+            "properties": {
+              "conditions": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "category": {
+                    "type": "string",
+                    "enum": [
+                      "DISPLAY_RACK",
+                      "STORAGE_BIN",
+                      "FOLDING_TABLE"
+                    ]
+                  },
+                  "quantity": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "vehicleType": {
+                    "type": "string",
+                    "enum": [
+                      "SEDAN",
+                      "SUV",
+                      "VAN",
+                      "TRUCK_1T"
+                    ]
+                  },
+                  "pickupDeadline": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "purpose": {
+                    "type": "string"
+                  }
+                }
+              },
+              "missingFields": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "category",
+                    "quantity",
+                    "vehicleType",
+                    "pickupDeadline",
+                    "purpose"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "response": {
+    "status": 200,
+    "latencyMs": 4468,
+    "body": {
+      "id": "chatcmpl-01a18e26-dd6c-756e-a9dd-0341bbb24ec4",
+      "choices": [
+        {
+          "finish_reason": "stop",
+          "index": 0,
+          "message": {
+            "content": "{\"conditions\": {\"category\": \"FOLDING_TABLE\", \"pickupDeadline\": \"2026-11-01T10:00:00+09:00\", \"quantity\": 5, \"vehicleType\": \"TRUCK_1T\"}, \"missingFields\": []}",
+            "refusal": null,
+            "role": "assistant"
+          },
+          "logprobs": null
+        }
+      ],
+      "created": 1793386274,
+      "model": "muse-spark-1.3",
+      "object": "chat.completion",
+      "usage": {
+        "completion_tokens": 1283,
+        "prompt_tokens": 237,
+        "total_tokens": 1520,
+        "completion_tokens_details": {
+          "reasoning_tokens": 1216
+        },
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        }
+      }
+    }
+  }
+}

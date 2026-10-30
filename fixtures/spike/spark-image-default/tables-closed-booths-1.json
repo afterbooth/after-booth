@@ -1,0 +1,179 @@
+{
+  "request": {
+    "method": "POST",
+    "url": "https://api.meta.ai/v1/chat/completions",
+    "body": {
+      "model": "muse-spark-1.3",
+      "messages": [
+        {
+          "role": "user",
+          "content": [
+            {
+              "type": "text",
+              "text": "You are an object grounding expert helping register leftover event equipment. Find every display rack (shelving, gondola, rack for showing goods), storage bin (plastic box, tote, crate) and folding table in the image. Ensure the objects accurately match and do not miss any objects. Return one entry per category with: category (DISPLAY_RACK, STORAGE_BIN, FOLDING_TABLE, or OTHER for other furniture worth reusing), count (number of separate physical units), sizeCm (approximate size of one unit in centimeters: width, depth, height), condition (GOOD, FAIR or POOR), confidence (0-1, how sure you are about category, count and size), and boxes (one bounding box per unit as x_min, y_min, x_max, y_max on a normalized 0-1000 grid with (0,0) at the top-left). Omit categories that are not present."
+            },
+            {
+              "type": "image_url",
+              "image_url": {
+                "url": {
+                  "redactedDataUrl": "data:image/jpeg;base64",
+                  "sha256": "376b0c3bebb167797a841c09458bc4e9cad4959c1963eb90f4a6f2bd8bfbc476",
+                  "bytes": 344930
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "response_format": {
+        "type": "json_schema",
+        "json_schema": {
+          "name": "IntakeEstimate",
+          "schema": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "items"
+            ],
+            "properties": {
+              "items": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "category",
+                    "count",
+                    "sizeCm",
+                    "condition",
+                    "confidence",
+                    "boxes"
+                  ],
+                  "properties": {
+                    "category": {
+                      "type": "string",
+                      "enum": [
+                        "DISPLAY_RACK",
+                        "STORAGE_BIN",
+                        "FOLDING_TABLE",
+                        "OTHER"
+                      ]
+                    },
+                    "count": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "sizeCm": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "width",
+                        "depth",
+                        "height"
+                      ],
+                      "properties": {
+                        "width": {
+                          "type": "integer",
+                          "minimum": 1
+                        },
+                        "depth": {
+                          "type": "integer",
+                          "minimum": 1
+                        },
+                        "height": {
+                          "type": "integer",
+                          "minimum": 1
+                        }
+                      }
+                    },
+                    "condition": {
+                      "type": "string",
+                      "enum": [
+                        "GOOD",
+                        "FAIR",
+                        "POOR"
+                      ]
+                    },
+                    "confidence": {
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 1
+                    },
+                    "boxes": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "required": [
+                          "x_min",
+                          "y_min",
+                          "x_max",
+                          "y_max"
+                        ],
+                        "properties": {
+                          "x_min": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 1000
+                          },
+                          "y_min": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 1000
+                          },
+                          "x_max": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 1000
+                          },
+                          "y_max": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 1000
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "response": {
+    "status": 200,
+    "latencyMs": 19695,
+    "body": {
+      "id": "chatcmpl-01a18e24-39ae-75b9-9904-32d9fb93f601",
+      "choices": [
+        {
+          "finish_reason": "stop",
+          "index": 0,
+          "message": {
+            "content": "{\"items\": [{\"boxes\": [{\"x_max\": 132, \"x_min\": 0, \"y_max\": 840, \"y_min\": 618}, {\"x_max\": 252, \"x_min\": 102, \"y_max\": 859, \"y_min\": 625}, {\"x_max\": 403, \"x_min\": 252, \"y_max\": 833, \"y_min\": 620}, {\"x_max\": 576, \"x_min\": 403, \"y_max\": 766, \"y_min\": 597}, {\"x_max\": 786, \"x_min\": 574, \"y_max\": 737, \"y_min\": 575}, {\"x_max\": 782, \"x_min\": 654, \"y_max\": 640, \"y_min\": 534}, {\"x_max\": 917, \"x_min\": 761, \"y_max\": 698, \"y_min\": 542}], \"category\": \"FOLDING_TABLE\", \"condition\": \"GOOD\", \"confidence\": 0.78, \"count\": 7, \"sizeCm\": {\"depth\": 60, \"height\": 75, \"width\": 180}}, {\"boxes\": [{\"x_max\": 225, \"x_min\": 132, \"y_max\": 811, \"y_min\": 613}, {\"x_max\": 346, \"x_min\": 244, \"y_max\": 798, \"y_min\": 603}, {\"x_max\": 432, \"x_min\": 339, \"y_max\": 782, \"y_min\": 599}, {\"x_max\": 586, \"x_min\": 492, \"y_max\": 752, \"y_min\": 573}, {\"x_max\": 657, \"x_min\": 571, \"y_max\": 740, \"y_min\": 562}, {\"x_max\": 714, \"x_min\": 633, \"y_max\": 724, \"y_min\": 557}], \"category\": \"OTHER\", \"condition\": \"GOOD\", \"confidence\": 0.92, \"count\": 6, \"sizeCm\": {\"depth\": 45, \"height\": 85, \"width\": 45}}]}",
+            "refusal": null,
+            "role": "assistant"
+          },
+          "logprobs": null
+        }
+      ],
+      "created": 1793386101,
+      "model": "muse-spark-1.3",
+      "object": "chat.completion",
+      "usage": {
+        "completion_tokens": 4325,
+        "prompt_tokens": 1550,
+        "total_tokens": 5875,
+        "completion_tokens_details": {
+          "reasoning_tokens": 3841
+        },
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        }
+      }
+    }
+  }
+}

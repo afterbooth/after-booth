@@ -1,0 +1,90 @@
+{
+  "request": {
+    "method": "POST",
+    "url": "https://api.meta.ai/v1/responses",
+    "body": {
+      "model": "sam-3.1",
+      "input": [
+        {
+          "type": "message",
+          "role": "user",
+          "content": [
+            {
+              "type": "input_text",
+              "text": "storage bin"
+            },
+            {
+              "type": "input_image",
+              "image_url": {
+                "redactedDataUrl": "data:image/jpeg;base64",
+                "sha256": "9a7a09de05c6a6ba448e877a40e0031a2a707b7a5a8f4c0b76c7a8cf5501ca4a",
+                "bytes": 119643
+              }
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "include_confidence": "true",
+        "mask_encoding": "one_bit"
+      }
+    }
+  },
+  "response": {
+    "status": 200,
+    "latencyMs": 3476,
+    "body": {
+      "metadata": {
+        "mask_encoding": "one_bit",
+        "include_confidence": "true"
+      },
+      "top_logprobs": 0,
+      "temperature": 1,
+      "top_p": 1,
+      "service_tier": "auto",
+      "model": "sam-3.1",
+      "background": false,
+      "tools": [],
+      "tool_choice": "auto",
+      "truncation": "disabled",
+      "id": "resp_6ae4e70297baa3a72b7e4fa8",
+      "object": "response",
+      "status": "completed",
+      "created_at": 1793386241,
+      "completed_at": 1793386242,
+      "error": null,
+      "incomplete_details": null,
+      "output": [
+        {
+          "type": "message",
+          "id": "msg_e96dfba6-9fc3-473e-bdb4-3e61b9d3270a",
+          "role": "assistant",
+          "content": [
+            {
+              "type": "output_text",
+              "text": "<0f>0<|box;x1=783;y1=207;x2=1091;y2=583;w=1280;h=922;c=0.5586206912994385|><|mask;x=0;y=0;c=0.5586206912994385;data=377,309,!!!!$`A/-qLD(0#{wo_meIy(4t&acBaI7D0]RGmJ`fQjL=dm370`7w&%hddS?g!F-qg^Q?#^z@9sl)O5pbox&='G#J:S4fTum$*7yP[8`zT`Nu(t6c6v:kG#&j:P&Bsf:NA[7mg=cOx4ZFqU3EXfm+dWC7EZAB0h!-T9lfg!hXz0E^xsh50]+2lAU.)Wg!=*q+XGQ(J!QWKqZzX`qD-U^*bIQU^_09WPC=7n*=s](bOf.l5_W@3$9mq:p*u2VxBH#A)8/Y6V9q%y_X/vTqyqllRZaDwY4`hZ``|>,1<|box;x1=275;y1=401;x2=803;y2=516;w=1280;h=922;c=0.6213017702102661|><|mask;x=0;y=0;c=0.6213017702102661;data=116,529,!!!!#:J@OdMFZrD:w_&s8Bc=.3Y*SytJni]Olu4`*'9Sj8H))Bhkl#Af7VBae43w6DJ2s$7TLEZ.?OqUB.5'W6(Fs?w4[uy3gL[)@buYU'8-bG@aYsx.h6bH=xe1o@f8#$=Hd5C9O/0b2|>,2<|box;x1=276;y1=498;x2=805;y2=803;w=1280;h=922;c=0.6800000071525574|><|mask;x=0;y=0;c=0.6800000071525574;data=306,530,!!!!#VH2?!tkW!q$akIsK%W-IH?HeU4c:RxasQ(%RpqHZ..8#a.cBY=kGFD7OU`656M)-#[SP5zyIo0-C#81Y8(@#cEU_/&HfZ$yKfU`L.92[H?kZk?lfZStc]Q)SCSkJ'1'j&jB6ofAear:?9:%)/eA^tYMMS'YM?Eu(y2G0Mc!!|>,3<|box;x1=188;y1=188;x2=948;y2=524;w=1280;h=922;c=0.5460992455482483|><|mask;x=0;y=0;c=0.5460992455482483;data=337,761,!!!!%x@2{E-q%C&huA.+DUk6tzy'N#.b$Z_fczn32Pdi%L+o55Ebvgz?8Kwb@$S1u8)@6odx?-^'E[e?$gHEL%%5S2djzi@^-^v2GtrVDd[Q.r%ORJ:7GvD5xdPT=Z7STe8]1uqCFmFYGBPxTf?B!$`24`MAN)uvF_x75)cW2iISXk9$wYhJPiyORK1gLNKvI{k%y-ao2i=KuUeY^5@Y@MrpN(K@JBG*yD835Aex5_m=gAgC`OLyk./3u{OtK6!%jlNi)LD*(!Zef?.qE2%0Z&ZgUne5qcrzp^rw{lqzuzi4N9#dRFbVvNKfZZ1P-ulbz]-&n.[l'!M=Bg]y8vVgbxV%'1RgeYw#H3)x*OSfCEt8)'@*@msn[Qw)w+FGkw]&R'/?P`b:j-bKlEHa(rP?H[sX=ZZ6Rf7oNv4^/._Zf1|>,4<|box;x1=782;y1=387;x2=1075;y2=680;w=1280;h=922;c=0.5151515007019043|><|mask;x=0;y=0;c=0.5151515007019043;data=294,294,!!!!$XG+4BR)v?(9.VZ-Y'Y0&Q*uml#[XLZYTa`{jt''jcgp$=_I1nyqxkW%GZ_{/^B(jk23aZD#A(67XU=4K{kPB23*dJ`^$@Bmhxl[_FjZQ?*)3E?Nxyl#-A6G0TN_1%e8f?$KI=Wdj=X{V.llUN7wq5?0:9vMAF[./)6?#Si*HhMkL_[EE)7gzhat()Ak?3i'Is#7UV@-O3!^:ITrbBc3:rmy_A?.[0I)VAfPXXPZi+$NhD$p&qbmp3U_+lNJ*U!D@&DL2mq=BajYw)HmJy4TI|>\n",
+              "annotations": [],
+              "logprobs": []
+            }
+          ],
+          "status": "completed"
+        }
+      ],
+      "instructions": null,
+      "usage": {
+        "input_tokens": 0,
+        "input_tokens_details": {
+          "cached_tokens": 0
+        },
+        "output_tokens": 0,
+        "output_tokens_details": {
+          "reasoning_tokens": 0
+        },
+        "total_tokens": 0,
+        "images_processed": 1
+      },
+      "parallel_tool_calls": true,
+      "store": true
+    }
+  }
+}

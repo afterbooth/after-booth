@@ -1,0 +1,98 @@
+{
+  "_comment": "Ground truth for the spike. count = best visible count; countMin/countMax bound ambiguous scenes. sizeClass S < 60 cm, M 60-150 cm, L > 150 cm (largest dimension). approxSizeCm is a rough guess unless sizeSource says otherwise. condition is a soft label.",
+  "samPhrases": {
+    "DISPLAY_RACK": "display rack",
+    "STORAGE_BIN": "storage bin",
+    "FOLDING_TABLE": "folding table"
+  },
+  "photos": [
+    {
+      "id": "table-lifetime-single",
+      "file": "table-lifetime-single.jpg",
+      "width": 469,
+      "height": 302,
+      "cluttered": false,
+      "note": "One plastic folding table, front view, low resolution",
+      "items": [
+        { "category": "FOLDING_TABLE", "count": 1, "countMin": 1, "countMax": 1, "sizeClass": "M", "approxSizeCm": { "width": 122, "depth": 61, "height": 74 }, "condition": "GOOD" }
+      ]
+    },
+    {
+      "id": "table-picnic-folding",
+      "file": "table-picnic-folding.jpg",
+      "width": 1280,
+      "height": 960,
+      "cluttered": false,
+      "note": "One folding picnic table with attached seats, unfolded",
+      "items": [
+        { "category": "FOLDING_TABLE", "count": 1, "countMin": 1, "countMax": 1, "sizeClass": "M", "approxSizeCm": { "width": 85, "depth": 66, "height": 70 }, "condition": "FAIR" }
+      ]
+    },
+    {
+      "id": "tables-closed-booths",
+      "file": "tables-closed-booths.jpg",
+      "width": 1280,
+      "height": 853,
+      "cluttered": true,
+      "note": "Closed outdoor event booths: canopy tents, folding chairs, narrow folding tables placed end to end. Table boundaries are hard to see, hence the range",
+      "items": [
+        { "category": "FOLDING_TABLE", "count": 6, "countMin": 5, "countMax": 7, "sizeClass": "L", "approxSizeCm": { "width": 180, "depth": 45, "height": 75 }, "condition": "GOOD" }
+      ]
+    },
+    {
+      "id": "bins-orange-stack",
+      "file": "bins-orange-stack.jpg",
+      "width": 1280,
+      "height": 960,
+      "cluttered": false,
+      "note": "Two stacks of lidded orange plastic totes; 4 clearly visible, a 5th only as an edge",
+      "items": [
+        { "category": "STORAGE_BIN", "count": 4, "countMin": 4, "countMax": 5, "sizeClass": "M", "approxSizeCm": { "width": 60, "depth": 40, "height": 35 }, "condition": "FAIR" }
+      ]
+    },
+    {
+      "id": "bins-nested-blue",
+      "file": "bins-nested-blue.jpg",
+      "width": 1280,
+      "height": 922,
+      "cluttered": false,
+      "note": "Three empty blue attached-lid bins nested inside each other, product photo on white",
+      "items": [
+        { "category": "STORAGE_BIN", "count": 3, "countMin": 3, "countMax": 3, "sizeClass": "M", "approxSizeCm": { "width": 60, "depth": 40, "height": 32 }, "condition": "GOOD" }
+      ]
+    },
+    {
+      "id": "rack-gondola-single",
+      "file": "rack-gondola-single.jpg",
+      "width": 480,
+      "height": 640,
+      "cluttered": false,
+      "note": "One empty wall gondola shelf on black background. Size is in the source file name (80 x 50 x 180)",
+      "items": [
+        { "category": "DISPLAY_RACK", "count": 1, "countMin": 1, "countMax": 1, "sizeClass": "L", "approxSizeCm": { "width": 80, "depth": 50, "height": 180 }, "sizeSource": "source file name", "condition": "GOOD" }
+      ]
+    },
+    {
+      "id": "rack-postcard-street",
+      "file": "rack-postcard-street.jpg",
+      "width": 663,
+      "height": 999,
+      "cluttered": false,
+      "note": "One freestanding wire postcard rack full of postcards on a street",
+      "items": [
+        { "category": "DISPLAY_RACK", "count": 1, "countMin": 1, "countMax": 1, "sizeClass": "L", "approxSizeCm": { "width": 50, "depth": 50, "height": 180 }, "condition": "GOOD" }
+      ]
+    },
+    {
+      "id": "racks-empty-store",
+      "file": "racks-empty-store.jpg",
+      "width": 1280,
+      "height": 768,
+      "cluttered": true,
+      "note": "Closed drugstore with empty gondola shelving runs; units overlap in depth, so the count is a range",
+      "items": [
+        { "category": "DISPLAY_RACK", "count": 7, "countMin": 5, "countMax": 9, "sizeClass": "L", "approxSizeCm": { "width": 120, "depth": 60, "height": 150 }, "condition": "FAIR" }
+      ]
+    }
+  ]
+}

@@ -14,8 +14,8 @@ The unit of work is a GitHub issue. Owners: **DY** = namdongyeob, **WJ** = WookJ
 - [x] #21 CI checks, required on main (DY)
 - [x] #23 Conclusion-first, traceable issue/PR/review templates + `pr-description` check (DY)
 - [x] #25 One rulebook: `AGENTS.md` for every agent, `CLAUDE.md` removed (DY)
-- [ ] #2 Spike: model list, Spark text/image/function calling, SAM 3.1, Transcribe, cost → spike/REPORT.md (DY, key A)
-- [ ] **G0 STOP** — report the REPORT summary and the decisions for humans
+- [x] #2 Spike: model list, Spark text/image/function calling, SAM 3.1, Transcribe, cost → spike/REPORT.md (DY, key A, $0.44)
+- [x] **G0 STOP** — report the REPORT summary and the decisions for humans (all five accepted: D-029–D-033)
 
 ## Phase 1: Features (target 11/1 night KST)
 
@@ -23,7 +23,7 @@ The unit of work is a GitHub issue. Owners: **DY** = namdongyeob, **WJ** = WookJ
 |---|---|---|---|
 | #3 | Domain model, Flyway, seed | WJ | BE |
 | #4 | AiGateway live/record/replay | DY | AI |
-| #5 | Photo intake (SAM → Spark → inventory draft → confirm) + capture screen | DY | BE+AI+FE |
+| #5 | Photo intake (Spark → SAM box prompts → inventory draft → confirm, D-029) + capture screen | DY | BE+AI+FE |
 | #6 | Voice pickup request (Transcribe → Spark structuring) + request screen | DY | BE+AI+FE |
 | #7 | Reservation core: conditional HOLD, idempotency, state machine, expiry scheduler + required tests | WJ | BE |
 | #8 | Vehicle fit + reason codes | WJ | BE |

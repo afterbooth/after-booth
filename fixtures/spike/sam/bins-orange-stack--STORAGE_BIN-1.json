@@ -1,0 +1,90 @@
+{
+  "request": {
+    "method": "POST",
+    "url": "https://api.meta.ai/v1/responses",
+    "body": {
+      "model": "sam-3.1",
+      "input": [
+        {
+          "type": "message",
+          "role": "user",
+          "content": [
+            {
+              "type": "input_text",
+              "text": "storage bin"
+            },
+            {
+              "type": "input_image",
+              "image_url": {
+                "redactedDataUrl": "data:image/jpeg;base64",
+                "sha256": "ca25fb92b51fb2525421d072a96121e0e6998edd9f2823d45c3d9ed8ba3a9986",
+                "bytes": 248099
+              }
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "include_confidence": "true",
+        "mask_encoding": "one_bit"
+      }
+    }
+  },
+  "response": {
+    "status": 200,
+    "latencyMs": 2003,
+    "body": {
+      "metadata": {
+        "mask_encoding": "one_bit",
+        "include_confidence": "true"
+      },
+      "top_logprobs": 0,
+      "temperature": 1,
+      "top_p": 1,
+      "service_tier": "auto",
+      "model": "sam-3.1",
+      "background": false,
+      "tools": [],
+      "tool_choice": "auto",
+      "truncation": "disabled",
+      "id": "resp_6ae4e6fd62d755f0649446f6",
+      "object": "response",
+      "status": "completed",
+      "created_at": 1793386237,
+      "completed_at": 1793386237,
+      "error": null,
+      "incomplete_details": null,
+      "output": [
+        {
+          "type": "message",
+          "id": "msg_b6039df8-0ac3-45f5-8150-5d14df5efcf7",
+          "role": "assistant",
+          "content": [
+            {
+              "type": "output_text",
+              "text": "<0f>0<|box;x1=1004;y1=793;x2=1279;y2=959;w=1280;h=960;c=0.6444444060325623|><|mask;x=0;y=0;c=0.6444444060325623;data=167,276,!!!!#*@ix)tLn74pJi196@]cHqB'xKmgi$0N8TI1M'VGaZ'sDIPEc(bCHw)hqrlJ:Rs''Z-mC(i9jAN@Sg7zi-I)X7tbP0HuR&{HO5&p`3.cu%oJ&-O^kx2?vI{|>,1<|box;x1=1016;y1=449;x2=1279;y2=924;w=1280;h=960;c=0.7064220309257507|><|mask;x=0;y=0;c=0.7064220309257507;data=476,264,!!!!#jBcUemN[@IyDv!t^-kCQ['5rqJ)ml@iIF&l90&=*-w5[m^39jZVYRx(TjF`Ym.Kw#:qnRyr!8J$#v8qQxN^IB-$ozJKcHojc%g#9aj?UAzc*QnT]w']SZ%R)VE1t.W63MzqeFMiwsl30p`uE2V@[^eA4Ff:nT]lP&CL7EPbiq3lw#(:kK0XicKSf1oHiB2I|>,2<|box;x1=191;y1=230;x2=1166;y2=888;w=1280;h=960;c=0.719298243522644|><|mask;x=0;y=0;c=0.719298243522644;data=659,976,!!!!'`=1LLGSB=?mAaIdp1C7JFmnxpm%`F*rEZ`{Vp`*jJ0S+/`K6=7(G]G%{N-evIbBp9z4s^$f%WRV^!RuLSTt_vo-fPOIneE^-TL&^e7?jPw*$mP{Z{@n+pl3=$^8fm7.MV:FV_Z{3]UgOI?DO9XvhD40'%Q0h76-/lZDy%Cw]hHw[]PpjA@vgJsA`!r6x?s#80hd0JO@cotGBA#wc_m1_MNF?Q&T{ZqIb0Wc8`enCr)QvSj8$Ha'w`Wammr-mABJ{vr=s[GyA{hE/y7.^Jp?e.4P#EQDL$XZiC&:l=x$/aPSzKxA:[8r+sRkj)!#5?Hzi./fakf/mh:`W*25'eCVs&etN:&#`?pA%f#BYEw/UE'*ghMQpLO%*u^G1K(V.nJOrU#JGb([J=r]10x[h`s21&C&8Ul:HhCd^v'g0SwKRZ-$oZ)JYz52m-_t8zv1xGf23JHwH.E!]][s4C@*H##TUUBZlaLZkt(dRdcG8?*!^-TSkfw-?3Lennb7u{:k{-iw'Nq-!ht#(#PnkXa&%eSE@G*zB'0*6nEoD@[_{kYGDRu:fJqBnIb'LfnH+3'N^LqT'i^X?qsTqh#MvVp2rw!tgW{?0[Z8U|>,3<|box;x1=235;y1=623;x2=1095;y2=959;w=1280;h=960;c=0.6995305418968201|><|mask;x=0;y=0;c=0.6995305418968201;data=337,861,!!!!&r8Xcj5?WWKE!RNh0DfX!bH{%B_mo=`0FBN*=dl#2ntyg!4F1)RCI1GNxR0g8BGb%fY75s0xCUoZ!Cn5[qM5uFi2PP0tMer76FwSj%=S&oGhO9`ovcfmFGz!)8oK8N!DBw_7%@J'[!7LYJA.rx8mkMTkjK^Th2qcU=TPN(SJn@0l'(kO39l7pCa!qYI`F['e[I4{m[jD4vi_s+B:!^le6RZMywK-=Igr^{=2jV@v&0_=`IOn=VQXS3!bAJ/:qJZ3nFaV95crDfT&)m+/ZQsvnU!3b4xDLmF9sur4MV(WGHPsg]dj!${pxm$q)W{:ily1)viO*3/.=K2^+w=M9`JS!(N:/D^@C!cX1EKF/%!uw&X-A87B&*FFF5Y#@0Oss&kXs[9X6dFZJY#'*K[dA4A+gT!1-dCF(:_Z$[n*R86l_k-aM3Zfr&Ttt.-sCSJT#3k_RZ*?%z1xVQc9@i46Vds#gx5PFIrA1--8/y:FP]%#%RI{O)Ar7Ah7$oP1gk(Wtx0KmlxySs/6V|>\n",
+              "annotations": [],
+              "logprobs": []
+            }
+          ],
+          "status": "completed"
+        }
+      ],
+      "instructions": null,
+      "usage": {
+        "input_tokens": 0,
+        "input_tokens_details": {
+          "cached_tokens": 0
+        },
+        "output_tokens": 0,
+        "output_tokens_details": {
+          "reasoning_tokens": 0
+        },
+        "total_tokens": 0,
+        "images_processed": 1
+      },
+      "parallel_tool_calls": true,
+      "store": true
+    }
+  }
+}
