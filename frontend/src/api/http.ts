@@ -1,5 +1,5 @@
-// orval fetch 클라이언트는 2xx가 아닌 응답도 그대로 resolve하므로, 여기서 ApiError로 바꿔 던진다.
-// 화면 코드는 try/catch 하나로 실패를 처리할 수 있다.
+// The orval fetch client resolves non-2xx responses too, so this turns them into a thrown ApiError.
+// Screen code then handles every failure with a single try/catch.
 export class ApiError extends Error {
   readonly status: number
   readonly code: string

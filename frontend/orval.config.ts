@@ -1,6 +1,6 @@
 import { defineConfig } from 'orval'
 
-// contract/openapi.yaml → fetch 클라이언트 + MSW 목. 생성물은 커밋하지 않는다 (npm run gen:api)
+// contract/openapi.yaml → fetch client + MSW mocks. Generated files are not committed (npm run gen:api)
 export default defineConfig({
   afterbooth: {
     input: { target: '../contract/openapi.yaml' },

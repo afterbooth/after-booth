@@ -16,7 +16,7 @@ import java.time.ZonedDateTime;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
-/** docs/CONVENTIONS.md의 백엔드 설계 규칙. 규칙을 바꾸면 문서도 같이 바꾼다. */
+/** Backend design rules from docs/CONVENTIONS.md. Change both together. */
 class ArchitectureTest {
 
   private static final List<String> DOMAINS =

@@ -4,7 +4,7 @@ import './index.css'
 import App from './App.tsx'
 
 async function enableMocking() {
-  // npm run dev:mock (vite --mode mock)일 때만 MSW를 켠다
+  // MSW runs only under npm run dev:mock (vite --mode mock)
   if (import.meta.env.MODE !== 'mock') return
   const { worker } = await import('./mocks/browser')
   await worker.start()

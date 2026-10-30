@@ -1,36 +1,36 @@
-# BUDGET — Meta Model API 크레딧
+# BUDGET — Meta Model API credits
 
-팀 크레딧: **키 A $150 + 키 B $150 = $300**. 호출당 단가는 Phase 0-5e에서 실측해 아래 표를 갱신한다.
+Team credits: **key A $150 + key B $150 = $300**. Measure the cost per call in Phase 0 (#2) and update the table below.
 
-## 키 역할
+## Key roles
 
-| 키 | 누구 | 용도 | 상한 |
+| Key | Owner | Use | Cap |
 |---|---|---|---|
-| A | namdongyeob | Phase 0 스파이크, Phase 1 스키마 튜닝, Phase 2 live E2E·record | $90 (예비 $60) |
-| B | WookJaes | Phase 1에서 #9·#10 프롬프트 튜닝만 소량(≤ $15). 데모 리허설·영상 녹화, 11/9 라이브 결선 예비 | $45 (예비 $105) |
+| A | namdongyeob | Phase 0 spike, Phase 1 schema tuning, Phase 2 live E2E and record | $90 (reserve $60) |
+| B | WookJaes | Small prompt tuning for #9 and #10 in Phase 1 (≤ $15). Demo rehearsal, video recording, 11/9 live finals reserve | $45 (reserve $105) |
 
-Phase 1 개발은 기본적으로 #2 스파이크가 저장한 fixture로 replay한다. live가 꼭 필요할 때만 각자 키를 쓴다.
+Phase 1 development replays the fixtures saved by the #2 spike by default. Use your own key for live calls only when you must.
 
-`.env`의 `META_API_KEY`는 사람이 바꿔 끼운다. 키 B로 바꿀 때 이 표의 "현재 키" 줄을 고친다.
+`META_API_KEY` in `.env` is swapped by a human. When switching to key B, update the "Current key" line below.
 
-현재 키: **A**
+Current key: **A**
 
-## 단계별 계획
+## Plan per stage
 
-| 단계 | 키 | 예상 | 메모 |
+| Stage | Key | Estimate | Notes |
 |---|---|---|---|
-| Phase 0 스파이크 | A | ≤ $15 | 모델 목록 0원, 기능별 5~10회. 응답은 바로 fixtures/로 |
-| Phase 1 개발 | A | ≤ $25 | 기본 replay. ai-pipeline이 프롬프트·스키마 맞출 때만 live |
-| Phase 2 live E2E + record | A | ≤ $30 | 시나리오 1~2회 → record → 이후 replay |
-| 데모 리허설·녹화 | B | ≤ $30 | live로 녹화, 실패하면 replay 폴백 |
-| 결선 예비 | B | 나머지 | 11/9 live finals |
+| Phase 0 spike | A | ≤ $15 | Model list is free; 5–10 calls per capability. Save responses straight to fixtures/ |
+| Phase 1 development | A | ≤ $25 | Replay by default. Live only while ai-pipeline tunes prompts and schemas |
+| Phase 2 live E2E + record | A | ≤ $30 | Scenario once or twice → record → replay afterwards |
+| Demo rehearsal and recording | B | ≤ $30 | Record in live mode, fall back to replay on failure |
+| Finals reserve | B | the rest | 11/9 live finals |
 
-자동 테스트·CI는 항상 replay, 0원.
+Automated tests and CI always use replay: $0.
 
-## 원장
+## Ledger
 
-live/record 호출을 할 때마다 한 줄 추가한다. 누적이 $50을 넘을 때마다 STOP(G$).
+Add one row for every live/record session. STOP (G$) each time the cumulative total passes another $50.
 
-| 날짜 | 키 | 용도 | 호출 수 | 추정 비용 | 누적 |
+| Date | Key | Purpose | Calls | Estimated cost | Cumulative |
 |---|---|---|---|---|---|
 | | | | | | $0 |

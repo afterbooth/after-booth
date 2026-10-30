@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-// PostToolUse hook. frontend 파일은 편집 직후 prettier로 포맷한다.
-// Java는 Gradle 기동이 느려서 여기서 돌리지 않고, feature 스킬의 커밋 직전 단계에서 spotlessApply로 처리한다.
+// PostToolUse hook. Formats frontend files with prettier right after each edit.
+// Java is not formatted here because starting Gradle is slow; the feature skill runs spotlessApply before each commit.
 import { execFileSync } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { join, relative } from 'node:path'
@@ -26,7 +26,7 @@ process.stdin.on('end', () => {
   try {
     execFileSync('node', [bin, '--write', file], { cwd: join(projectDir, pkg), stdio: 'ignore' })
   } catch {
-    // 포맷 실패는 작업을 막지 않는다. 빌드의 format:check가 잡는다
+    // a formatting failure never blocks work; format:check in the build catches it
   }
   process.exit(0)
 })

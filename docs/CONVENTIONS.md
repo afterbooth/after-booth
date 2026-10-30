@@ -4,14 +4,15 @@ How we write code, commits and pull requests in AfterBooth. Agents and humans fo
 
 ## Language
 
+Everything in the repository is English. Only text that Korean users see is Korean.
+
 | What | Language |
 |---|---|
-| Commit messages, PR titles and descriptions, issue titles and bodies, review comments | English |
-| README, submission text, demo script and subtitles | English |
-| Code identifiers | English |
-| Code comments | English or Korean, one line, only when needed (see [Comments](#comments)) |
-| Product UI text | Korean |
-| Internal docs (`CLAUDE.md`, `docs/TASKS.md`, `docs/DECISIONS.md`, ...) | Korean is fine |
+| Docs, harness files (`CLAUDE.md`, agents, skills), README, submission text, demo script | English |
+| Commit messages, PR titles and descriptions, issues, review comments | English |
+| Code identifiers, code comments, test names | English |
+| Product UI text and user-facing error messages (`ErrorCode` messages) | Korean |
+| Chat between teammates and with Claude | Anything |
 
 Pushed history is never rewritten to change language.
 
@@ -150,5 +151,5 @@ Do not write:
 - Domain rules: plain JUnit tests on entities and value objects, without Spring.
 - Services with real persistence and concurrency: `@SpringBootTest` + Testcontainers. No H2.
 - Controllers: `@WebMvcTest` for validation and error mapping.
-- Test names say the behavior: `holdFailsWhenQuantityIsNotAvailable` or a Korean sentence.
+- Test names say the behavior in English: `holdFailsWhenQuantityIsNotAvailable`, `'shows counts per category after upload'`.
 - Tests never call the Meta API. `AI_MODE=replay` with fixtures.

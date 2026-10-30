@@ -11,7 +11,7 @@ beforeAll(() => server.listen())
 afterEach(() => server.resetHandlers())
 afterAll(() => server.close())
 
-test('사진을 올리면 품목별 개수를 보여준다', async () => {
+test('shows counts per category after a photo upload', async () => {
   server.use(
     http.post('*/api/intake/drafts', () =>
       HttpResponse.json({
@@ -30,7 +30,7 @@ test('사진을 올리면 품목별 개수를 보여준다', async () => {
   expect(await screen.findByText('진열대 4개')).toBeInTheDocument()
 })
 
-test('분석 중에는 사진을 다시 고를 수 없다', async () => {
+test('disables photo selection while analyzing', async () => {
   server.use(http.post('*/api/intake/drafts', () => new Promise<never>(() => {})))
   render(<IntakeScreen />)
   const input = screen.getByLabelText('부스 사진 찍기')
@@ -40,7 +40,7 @@ test('분석 중에는 사진을 다시 고를 수 없다', async () => {
   expect(input).toBeDisabled()
 })
 
-test('분석에 실패하면 다시 찍으라고 안내한다', async () => {
+test('asks to retake the photo when analysis fails', async () => {
   server.use(
     http.post('*/api/intake/drafts', () =>
       HttpResponse.json(

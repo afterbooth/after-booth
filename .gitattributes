@@ -12,5 +12,5 @@
 *.m4a binary
 *.webm binary
 
-# 자동 생성 파일은 GitHub 언어 통계에서 뺀다
+# Keep generated files out of GitHub language stats
 frontend/public/mockServiceWorker.js linguist-generated

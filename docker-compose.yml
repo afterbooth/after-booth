@@ -1,4 +1,4 @@
-# 로컬 개발용. Phase 2에서 backend·frontend 서비스를 추가해 `docker compose up` 한 번으로 데모가 돌게 한다.
+# Local development. Phase 2 (#11) adds backend and frontend services so one `docker compose up` runs the demo.
 services:
   postgres:
     image: postgres:17-alpine

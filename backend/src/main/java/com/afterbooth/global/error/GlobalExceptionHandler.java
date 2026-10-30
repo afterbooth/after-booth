@@ -32,7 +32,7 @@ class GlobalExceptionHandler {
 
   @ExceptionHandler(Exception.class)
   ResponseEntity<ErrorResponse> handleUnexpected(Exception e) {
-    // 405·415·404(없는 경로) 같은 Spring MVC 예외는 원래 4xx 상태 코드를 유지한다
+    // Spring MVC exceptions such as 405, 415 and 404 (unknown path) keep their own 4xx status
     if (e instanceof org.springframework.web.ErrorResponse framework
         && framework.getStatusCode().is4xxClientError()) {
       return handleClientError(framework.getStatusCode());

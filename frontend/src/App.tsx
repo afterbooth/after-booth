@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { getHealth } from './api/generated/afterbooth'
 import type { Health } from './api/generated/model'
 
-// 부트스트랩 확인용 화면. Phase 1에서 촬영·등록 / 수령 요청 / 배정 보드 3개 화면으로 교체한다
+// Bootstrap check screen. Replaced in Phase 1 by the capture, pickup request and allocation board screens
 export default function App() {
   const [health, setHealth] = useState<Health | null>(null)
   const [error, setError] = useState(false)
