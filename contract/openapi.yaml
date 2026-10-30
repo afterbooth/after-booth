@@ -15,7 +15,12 @@ info:
       The server fingerprints method + path + body (file hash for multipart). Same key + same fingerprint returns
       the stored first response without re-running anything. Same key + different fingerprint, or the same key
       while the first call is still running, returns 409 `IDEMPOTENCY_CONFLICT`. A missing key returns 400.
-    - Errors use the `Error` schema. `message` is Korean and safe to show to users.
+      Client rule: on `IDEMPOTENCY_CONFLICT`, retry with the same key after 1, 2 and 4 seconds (covers the in-flight
+      case); if it still fails, show the message and treat the next tap as a new action with a new key.
+    - Errors use the `Error` schema. `message` is Korean and safe to show to users. Any operation may also return
+      500 `INTERNAL_ERROR`, and 405/415 `UNSUPPORTED_REQUEST` for a wrong method or content type (for example an
+      audio format Voice Transcribe does not accept).
+    - There is no sign-in. Screens pick the organization from `listOrganizations`.
     - AI proposes, the server decides: the allocation agent can create at most a HELD reservation, and every tool
       call is validated by the same rules as `holdItem`.
 servers:
@@ -162,7 +167,10 @@ paths:
       summary: Confirm the human-reviewed draft into inventory items
       description: |
         The person may edit category, quantity, size and condition, or drop lines. Only lines sent here become items.
-        A draft can be confirmed once (DRAFT_ALREADY_CONFIRMED). A draft that is not READY fails with DRAFT_NOT_READY.
+        Each `lineId` must be one of this draft's lines and appear once (400 INVALID_INPUT otherwise).
+        `Item.label` is derived from the confirmed category (see `ItemCategory`), not copied from the draft line.
+        On success the draft becomes CONFIRMED. A draft can be confirmed once (DRAFT_ALREADY_CONFIRMED). A draft that
+        is not READY fails with DRAFT_NOT_READY.
       parameters:
         - $ref: '#/components/parameters/IdempotencyKey'
       requestBody:
@@ -278,6 +286,7 @@ paths:
       operationId: createPickupRequest
       tags: [requests]
       summary: Save a receiver's pickup request
+      description: The receiver picks their organization from `listOrganizations` (there is no sign-in); speech never sets it.
       parameters:
         - $ref: '#/components/parameters/IdempotencyKey'
       requestBody:
@@ -328,15 +337,22 @@ paths:
         the agent may only hold items of `request.category`.
 
         Outcomes (both are 200):
-        - HELD: at least one reservation was held; `reservations` lists them (status HELD only).
+        - HELD: at least one reservation was held; `reservations` lists them (status HELD only). Holding less than
+          `request.quantity` is allowed (e.g. 2 of 5); the UI shows "2 of 5" and the receiver tops up with
+          `holdItem` from `alternatives`.
         - NO_MATCH: nothing was held; `rejections` says why per candidate and `alternatives` lists what can be held
-          with `holdItem`. Two concurrent calls for the last unit end with one HELD and one NO_MATCH.
+          with `holdItem`. Two concurrent calls for the last unit (two requests) end with one HELD and one NO_MATCH.
+        An item offered in `alternatives` is not also listed in `rejections`.
 
         Partial failure: once any hold succeeded, the result is HELD even if the model fails afterwards; the server
         then writes `explanation` from a template. 503 AI_UNAVAILABLE is returned only when nothing was held.
 
         One allocation per request: if the request already has a HELD or CONFIRMED reservation, the call fails
-        with 409 REQUEST_ALREADY_HELD.
+        with 409 REQUEST_ALREADY_HELD. This check runs inside the request-row lock, so of two concurrent runs for
+        the same request (different keys) the second gets 409.
+
+        Allocation runs are not stored. A same-key retry replays the stored response from the idempotency record;
+        after a page reload, holds come from `listReservations?requestId=`.
       parameters:
         - $ref: '#/components/parameters/IdempotencyKey'
       responses:
@@ -359,7 +375,7 @@ paths:
     get:
       operationId: listReservations
       tags: [reservations]
-      summary: Reservations, filtered by request or event (without transition history)
+      summary: Reservations, filtered by request and/or event (filters combine with AND; no transition history)
       parameters:
         - name: requestId
           in: query
@@ -487,9 +503,12 @@ paths:
       tags: [handover]
       summary: Recount a CONFIRMED reservation from one pickup photo
       description: |
-        SAM 3.1 counts the items in the photo. If the count equals the reserved quantity, the reservation becomes
-        HANDED_OVER with `handedOverQty` = quantity and the reuse is recorded. Otherwise the result is MISMATCH and
-        the reservation stays CONFIRMED until a person resolves it with `resolveHandover`.
+        SAM 3.1 counts the items in the photo and the server writes a `handover_log` row.
+        - Count equals the reserved quantity: the reservation becomes HANDED_OVER with `handedOverQty` = quantity,
+          the log row gets `accepted_qty` at once, and the reuse is recorded. No `resolveHandover` call follows.
+        - Otherwise: the result is MISMATCH and the reservation stays CONFIRMED. The person either retakes the photo
+          (a new call with a new Idempotency-Key; the newest log row supersedes older ones) or settles it with
+          `resolveHandover`.
         Only CONFIRMED reservations (INVALID_TRANSITION otherwise) before their pickup deadline (PICKUP_CLOSED).
       parameters:
         - $ref: '#/components/parameters/IdempotencyKey'
@@ -528,9 +547,14 @@ paths:
       tags: [handover]
       summary: A person settles a count mismatch and completes the handover
       description: |
-        In one transaction: the reservation becomes HANDED_OVER with `handedOverQty` = `acceptedQty`, the
-        unreceived remainder (quantity − acceptedQty) returns to the item's availableQty, and the reuse of
-        `acceptedQty` is recorded. If nothing was received, use `cancelReservation` instead.
+        Only after a photo count: the reservation must be CONFIRMED and its newest `handover_log` row must be
+        MISMATCH, otherwise 409 INVALID_TRANSITION. A handover can never complete without a SAM 3.1 recount.
+        `acceptedQty` greater than the reserved quantity fails with 400 INVALID_INPUT.
+
+        In one transaction: the newest MISMATCH log row gets `accepted_qty`, the reservation becomes HANDED_OVER
+        with `handedOverQty` = `acceptedQty`, the unreceived remainder (quantity − acceptedQty) returns to the
+        item's availableQty, and the reuse of `acceptedQty` is recorded. The result status is always COMPLETED.
+        If nothing was received, use `cancelReservation` instead.
       parameters:
         - $ref: '#/components/parameters/IdempotencyKey'
       requestBody:
@@ -695,12 +719,20 @@ components:
 
     ItemCategory:
       type: string
-      description: The three categories in scope
+      description: |
+        The three categories in scope. Every `label` field is derived from this table on the server; clients show it as is.
+
+        | Category | label |
+        |---|---|
+        | DISPLAY_RACK | 진열대 |
+        | STORAGE_BIN | 수납함 |
+        | FOLDING_TABLE | 접이식 테이블 |
       enum: [DISPLAY_RACK, STORAGE_BIN, FOLDING_TABLE]
 
     DraftCategory:
       type: string
-      description: ItemCategory plus UNKNOWN, which can only appear in intake drafts and must be fixed before confirm
+      description: |
+        ItemCategory plus UNKNOWN (label 미분류), which can only appear in intake drafts and must be fixed before confirm
       enum: [DISPLAY_RACK, STORAGE_BIN, FOLDING_TABLE, UNKNOWN]
 
     Condition:
@@ -1028,6 +1060,9 @@ components:
         vehicleRequirement:
           description: Smallest vehicle the giver requires. Absent = no requirement beyond size
           $ref: '#/components/schemas/VehicleType'
+        conditionsTranscript:
+          type: string
+          description: The giver's original spoken or typed conditions, shown on the item card
 
     AllocationStatus:
       type: string
@@ -1136,6 +1171,7 @@ components:
         | CONFIRMED → HANDED_OVER | handover count matches, or `resolveHandover` | HANDOVER / USER | +(quantity − handedOverQty) |
 
         `holdExpiresAt` = min(hold time + hold TTL, item `pickupDeadline`), so HELD never outlives the pickup deadline.
+        The hold TTL is 15 minutes (server setting `afterbooth.hold-ttl`, default `PT15M`).
         Every quantity effect is applied exactly once, in the same transaction as the status change.
         Any other transition fails with INVALID_TRANSITION.
       enum: [HELD, CONFIRMED, HANDED_OVER, RELEASED, EXPIRED]
@@ -1254,7 +1290,7 @@ components:
         acceptedQty:
           type: integer
           minimum: 1
-          description: Quantity actually handed over, at most the reserved quantity
+          description: Quantity actually handed over, 1 to the reserved quantity (more → 400 INVALID_INPUT)
 
     ReuseStats:
       type: object
