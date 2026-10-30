@@ -24,7 +24,8 @@ info:
     - Photo counting (intake and handover): Muse Spark finds and counts items and returns a box per item; SAM 3.1
       then segments each box (box prompts). "SAM segmented an item" means SAM returned a mask for its box with a
       score at or above the configured `afterbooth.ai.sam.min-score`. A completed SAM call may segment none of the
-      boxes; that is a result, not a failure. A SAM call that errors or times out is a failure.
+      boxes; that is a result, not a failure. A SAM call that errors or times out is a failure. When Spark counts
+      no items there are no boxes and SAM is skipped: intake becomes READY with no lines, a handover is MISMATCH.
     - AI proposes, the server decides: the allocation agent can create at most a HELD reservation, and every tool
       call is validated by the same rules as `holdItem`.
 servers:
@@ -518,7 +519,7 @@ paths:
       description: |
         Muse Spark counts the items of the reserved category in the photo, SAM 3.1 segments each counted item from
         Spark's boxes, and the server writes a `handover_log` row. The row is written only after both calls
-        completed; if either fails, the response is 503 AI_UNAVAILABLE, nothing is written and the reservation is
+        completed (or Spark counted none, which skips SAM and is MISMATCH); if either fails, the response is 503 AI_UNAVAILABLE, nothing is written and the reservation is
         unchanged. The count matches only if it equals the reserved quantity and SAM segmented every box (see the
         photo counting convention above); a completed SAM call that segments fewer boxes, or none, is MISMATCH.
         - Count matches: the reservation becomes HANDED_OVER with `handedOverQty` = quantity,
