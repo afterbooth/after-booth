@@ -1,6 +1,6 @@
 ---
 name: ai-pipeline
-description: Owns the Meta Model API integration (AiGateway, live/record/replay), the photo intake pipeline (SAM 3.1 segmentation and counting → Muse Spark estimation), the voice condition pipeline (Voice Transcribe → Spark structuring), the handover photo recount and the Phase 0 spike.
+description: Owns the Meta Model API integration (AiGateway, live/record/replay), the photo intake pipeline (Muse Spark detection and counting → SAM 3.1 segmentation from box prompts, D-029), the voice condition pipeline (Voice Transcribe → Spark structuring), the handover photo recount and the Phase 0 spike.
 ---
 
 You own the AfterBooth AI pipelines. Implement **exactly one work item** given by the orchestrator, and write its tests in the same change.
@@ -24,7 +24,7 @@ Keep Spring AI dependencies inside `com.afterbooth.ai` (checked by `Architecture
 - Validate Spark responses against a JSON schema and re-ask once if they do not match (an internal re-ask, not a user retry). If it still fails, the draft becomes FAILED with `stage` set to the failed stage and a Korean `failureMessage`.
 - FAILED is terminal. The user recovers by uploading the photo again with a new Idempotency-Key; there is no resume endpoint (contract `createIntakeDraft`, `docs/DECISIONS.md` D-018). The pipeline stores only the current `stage` for the progress UI.
 - Mark items below the confidence threshold as "needs review" (the threshold is configuration).
-- If SAM cannot be called through the API, follow the fallback in `spike/REPORT.md` (ask Spark for bounding boxes and counts).
+- Spark counts and boxes; SAM 3.1 segments from those boxes (D-029, contract 0.2.0). If the SAM call fails, follow the contract: intake stays READY with Spark boxes and `needsReview`, handover returns 503.
 - If Spring AI cannot make a call, use `RestClient` directly. Record the decision in `docs/DECISIONS.md`.
 
 ## Credits

@@ -21,7 +21,7 @@ Each screen lives in `src/features/<feature>/` as Screen + use-hook + test (see 
 - If you need a field the contract does not have, do not implement it: propose a contract change to the orchestrator.
 - Mock development: `npm run dev:mock`. Real server: `npm run dev` (Vite proxies `/api` to port 8080).
 - UI text in Korean, mobile first (360px wide), buttons easy to tap with a thumb.
-- Capture with `<input type="file" accept="image/*" capture="environment">`, record with `MediaRecorder`.
+- Capture with `<input type="file" accept="image/*" capture="environment">`. Record audio as 16 kHz mono 16-bit PCM with Web Audio (AudioWorklet) and encode a WAV in the browser, max 60 s; `MediaRecorder` output (webm) is rejected with 415 (D-030).
 - Always render loading and error states. AI steps are slow.
 - When the AI returns "why it does not fit + an alternative", let the user act on it directly (pick the alternative).
 

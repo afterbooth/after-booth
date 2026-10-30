@@ -65,7 +65,7 @@ A surplus equipment hand-off service for events. Equipment left over after festi
 ## Screens (Korean UI, mobile first)
 
 1. **Capture and register**: capture with `<input capture>`, box overlay for each detected item, count per category, edit then confirm
-2. **Pickup request**: record with MediaRecorder, interpreted condition card, allocation proposal with "why it does not fit + alternative"
+2. **Pickup request**: record 16 kHz mono PCM with Web Audio (AudioWorklet) and encode the WAV in the browser (D-030), interpreted condition card, allocation proposal with "why it does not fit + alternative"
 3. **Allocation board**: teardown deadline countdown, live remaining quantity (polling), concurrent request results
 
 ## Demo scenario

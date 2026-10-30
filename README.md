@@ -8,8 +8,8 @@ Built for the Meta Global AI Developer Hackathon (Indie track). Full write-up co
 
 | Model | Role |
 |---|---|
-| SAM 3.1 | Segments and counts items in a booth photo; recounts at handover |
-| Muse Spark | Estimates item type, size, condition; structures voice requests; allocation agent via function calling |
+| SAM 3.1 | Segments each item Muse Spark found (box prompts) for the overlay, and checks every counted item at handover |
+| Muse Spark | Finds and counts items in a booth photo with type, size and condition, and recounts at handover; structures voice requests; allocation agent via function calling |
 | Muse Voice Transcribe | Turns spoken pickup conditions into text |
 
 AI only proposes. The server validates quantity, time and vehicle fit, and the agent can only create a HOLD.
