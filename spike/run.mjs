@@ -5,10 +5,10 @@
 //
 // --dry-run builds every request and prints it without touching the network or reading the key.
 // Live runs append one line per HTTP call to spike/out/calls.jsonl and save the raw exchange
-// (images and audio replaced by sha256 + byte size) to spike/out/<capability>/<input>-<n>.json.
+// (images and audio replaced by sha256 + byte size) to spike/out/<run id>/<capability>/<input>-<n>.json.
 import { createHash, randomUUID } from 'node:crypto';
 import { appendFileSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { parseArgs } from 'node:util';
 import { printSummary, summarize } from './summarize.mjs';
 
@@ -123,8 +123,9 @@ async function send({ capability, inputId, n, method = 'POST', path, json, multi
     body: parsed,
   });
 
-  const rawPath = join(OUT, capability, `${inputId}-${n}.json`);
-  mkdirSync(join(OUT, capability), { recursive: true });
+  // One folder per run so a later run never overwrites the raw exchange an older calls.jsonl row points to
+  const rawPath = join(OUT, RUN_ID, capability, `${inputId}-${n}.json`);
+  mkdirSync(dirname(rawPath), { recursive: true });
   writeFileSync(rawPath, JSON.stringify({ request: { method, url, body: savedRequest }, response: { status, latencyMs, body: parsed ? redact(parsed) : text } }, null, 2));
   rec.rawPath = rawPath.slice(SPIKE_DIR.length + 1).replaceAll('\\', '/');
   return rec;
@@ -419,7 +420,7 @@ async function sparkTools() {
           const argErrors = error ? [error] : validate(TOOL_SCHEMAS[call.function?.name] ?? {}, args);
           if (error) wellFormed = false;
           if (argErrors.length) schemaValid = false;
-          const result = error ? { outcome: 'REJECTED', code: 'INVALID_ARGUMENTS', message: error } : runTool(call.function.name, args, state);
+          const result = argErrors.length ? { outcome: 'REJECTED', code: 'INVALID_ARGUMENTS', message: argErrors.join('; ') } : runTool(call.function.name, args, state);
           sequence.push(call.function?.name);
           state.calls.push({ name: call.function?.name, args, outcome: result.outcome ?? 'OK', code: result.code ?? null });
           turnCalls.push({ name: call.function?.name, arguments: call.function?.arguments, argErrors, result });
@@ -583,8 +584,7 @@ async function sam() {
 /** Spark finds and counts, SAM masks: Spark's 0–1000 boxes from the last spark-image run become SAM box prompts. */
 async function samBoxes() {
   for (const photo of selected(labels.photos)) {
-    const rawPath = join(OUT, 'spark-image', `${photo.id}-1.json`);
-    const saved = DRY ? null : JSON.parse(readFileSync(rawPath, 'utf8'));
+    const saved = DRY ? null : JSON.parse(readFileSync(join(SPIKE_DIR, latestRawPath('spark-image', photo.id)), 'utf8'));
     const items = saved ? JSON.parse(saved.response.body.choices[0].message.content).items : photo.items.map((i) => ({ boxes: [{ x_min: 100, y_min: 100, x_max: 900, y_max: 900 }] }));
     const { width: w, height: h } = photo;
     const sparkBoxes = items
@@ -625,6 +625,13 @@ async function samBoxes() {
       score: { hit: parsed.count === sparkBoxes.length ? 1 : 0, total: 1 },
     });
   }
+}
+
+function latestRawPath(capability, inputId) {
+  const calls = readFileSync(join(OUT, 'calls.jsonl'), 'utf8').trim().split('\n').map((line) => JSON.parse(line));
+  const last = calls.findLast((c) => c.capability === capability && c.inputId === inputId && c.ok && c.rawPath);
+  if (!last) fail(`no successful ${capability} call for ${inputId} in spike/out/calls.jsonl; run it first`);
+  return last.rawPath;
 }
 
 function iou(a, b) {
