@@ -1,6 +1,6 @@
 # Spike #2 report: Meta Model API for AfterBooth
 
-Measured on 2026-10-31 with key A: 137 logged calls plus one unlogged `GET /v1/models`, about **$0.44** of the $15 spike budget. Raw data: `spike/out/calls.jsonl` (gitignored); representative responses: `fixtures/spike/`. Inputs: 8 Wikimedia Commons photos and 5 Windows TTS Korean clips (`spike/samples/`).
+Measured on 2026-10-31 with key A: 139 HTTP calls logged as 137 records (the two Java tool checks make two calls each) plus one unlogged `GET /v1/models`. Estimated cost (usage × the pricing page; not yet checked against the billing dashboard) is about **$0.44** of the $15 spike budget. Raw data: `spike/out/calls.jsonl` (gitignored); representative responses: `fixtures/spike/`. Inputs: 8 Wikimedia Commons photos and 5 Windows TTS Korean clips (`spike/samples/`).
 
 ## 1. TL;DR
 
@@ -24,7 +24,7 @@ Measured on 2026-10-31 with key A: 137 logged calls plus one unlogged `GET /v1/m
 - Request shapes that worked:
   - Spark: `POST /v1/chat/completions`, image as `{"type":"image_url","image_url":{"url":"data:image/jpeg;base64,..."}}`, structured output as `response_format: {type:"json_schema", json_schema:{name, schema}}`, tools in the nested Chat Completions format, optional `reasoning_effort`.
   - SAM: `POST /v1/responses`, non-streaming, `model:"sam-3.1"`, one user message with `input_text` + `input_image` (data URL), `metadata: {include_confidence:"true", mask_encoding:"one_bit"}`. Result text is in `output[0].content[0].text` (there is no top-level `output_text`); no match = empty string with `status:"completed"`. Box prompts: `<0f>1<|box;x1=..;y1=..;x2=..;y2=..;w=W;h=H|>,2<|box;...|>` in source pixels. `usage` reports `images_processed: 1` and zero tokens.
-  - Transcribe: `POST /v1/asr/transcribe`, multipart with a `request` part (`application/json`: `{"model","audioEncoding":"WAV","mode":"PUSH_TO_TALK","languageBias":["Korean"]}`) and an `audio` part (`audio/wav`). Response `{sessionId, transcript, audioDurationMs, turns:[]}`. Accepts WAV only: RIFF mono 16-bit PCM at 16 or 24 kHz, ≤ 10 min, ≤ 32 MB.
+  - Transcribe: `POST /v1/asr/transcribe`, multipart with a `request` part (`application/json`: `{"model","audioEncoding":"WAV","mode":"PUSH_TO_TALK","languageBias":["Korean"]}`) and an `audio` part (`audio/wav`). Response `{sessionId, transcript, audioDurationMs, turns:[]}`. Only 16 kHz mono WAV was sent. Per the docs (not exercised), it accepts WAV only (RIFF mono 16-bit PCM at 16 or 24 kHz, ≤ 10 min, ≤ 32 MB) and returns 400 for anything else.
 - API constraints from the docs (not exercised): `tool_choice` accepts only `"auto"`; HTTP 400 for `stop`, `n > 1`, `logprobs`, frequency/presence penalties and `reasoning_effort:"none"`; Spark is tuned for the default temperature. Spring AI 2.0.1 sends none of these by default.
 
 ## 3. Results
@@ -66,9 +66,9 @@ Default effort spends most output on reasoning (image: up to 3841 reasoning toke
 - **Fallback:** do not use the concept-prompt count as the inventory count. Use Spark's count and box prompts (4.3).
 
 ### 4.3 SAM box prompts seeded with Spark boxes (`run.mjs sam-boxes`)
-- `sam-boxes` converts Spark's 0–1000 boxes from the last saved `spark-image` response into SAM box prompts in source pixels (max 16 per request) and compares each returned box with the prompt box by IoU. That run used the **default-effort** Spark boxes, including the 6 `OTHER` boxes on the booth photo (13 prompts).
+- `sam-boxes` converts Spark's 0–1000 boxes from the latest successful `spark-image` response into SAM box prompts in source pixels (max 16 per request) and compares each returned box with the prompt box by IoU. That run used the **default-effort** Spark boxes, including the 6 `OTHER` boxes on the booth photo (13 prompts).
 - Every prompt came back as one record with a mask (32/32). IoU between SAM's box and Spark's box: median 0.83; 3 of 32 below 0.5 (0.04 on a booth chair, 0.36 and 0.48 in the store), which flag Spark boxes SAM disagrees with.
-- Confidence median 0.80 (phrase prompts: 0.68), but box prompts can return values down to 0.41.
+- Confidence median 0.79 (phrase prompts: 0.68), but box prompts can return values down to 0.41.
 - p50 1.9 s for all boxes of a photo in one request, $0.0025 per photo.
 
 ### 4.4 Voice Transcribe
@@ -93,21 +93,24 @@ Default effort spends most output on reasoning (image: up to 3841 reasoning toke
 
 ## 5. Implications for upcoming issues
 
-- **#4 AiGateway:** Spring AI 2.0.1 for Spark chat, tools and structured output, with `base-url=${META_BASE_URL}/v1` and retries off or bounded (the SDK default is 3 retries). SAM `/v1/responses` and Transcribe multipart are outside Spring AI's model: use `RestClient` for both. Suggested replay key: SHA-256 over method + path + canonical JSON body where every image or audio payload is replaced by its SHA-256 (the redaction `run.mjs` already applies); Spark output is not deterministic, so keying by content would not work. Timeouts: Spark `minimal` 15 s, Spark default 30 s, SAM 10 s, Transcribe 15 s for ≤ 60 s clips (60 s clips not measured).
+- **#4 AiGateway:** Spring AI 2.0.1 for Spark chat, tools and structured output, with `base-url=${META_BASE_URL}/v1` (`backend/src/main/resources/application.properties` still sets it without `/v1`; #4 must fix it) and retries off or bounded (the SDK default is 3 retries). SAM `/v1/responses` and Transcribe multipart are outside Spring AI's model: use `RestClient` for both. Suggested replay key: SHA-256 over method + path + canonical JSON body where every image or audio payload is replaced by its SHA-256 (the redaction `run.mjs` already applies); Spark output is not deterministic, so keying by content would not work. Timeouts: Spark `minimal` 15 s, Spark default 30 s, SAM 10 s, Transcribe 15 s for ≤ 60 s clips (60 s clips not measured).
 - **#5 photo intake:** order is ESTIMATE (Spark) then SEGMENT (SAM box prompts), the reverse of the current `IntakeStage` description. Expected time per photo is about 5–8 s (Spark minimal 3.3 s p50 / 6.4 s max + SAM 1.9 s), which fits the "registered within 15 s" demo step. Drop `OTHER` items. Size goes to the confirm screen for correction.
 - **#6 spoken conditions:** WAV transcoding (section 6b), `languageBias:["Korean"]`, Spark `minimal` with structured output, show the raw transcript.
+- **#10 handover recount:** the same Spark-count + SAM-box-prompt path on one pickup photo, filtered to the reserved category, compared with the reserved quantity (section 6e). Not measured on handover-style photos.
 - **#9/#10 allocation agent:** default effort works at about 2 s per turn and 5 turns. Cap turns (6) and total time (30 s). Measure `minimal` and the hold happy path in #10.
 - **Fixtures:** `fixtures/spike/` holds raw spike responses (see its README); #4 defines the replay naming and may re-record.
 
 ## 6. Decisions for humans (G0)
 
-a) **Photo pipeline and SAM's role.** Options: (1) SAM concept prompts count, Spark labels: measured 4/8 correct. (2) Spark counts and boxes, SAM box prompts make masks, and a SAM concept count cross-checks for `needsReview`: Spark 8/8 in range, SAM 32/32 masks. (3) Spark only, no SAM: simplest, but drops a required Meta model and the masks. **Recommend (2).** Needs a contract note: `DraftLine.count` comes from Spark, `boxes` from SAM, and `IntakeStage` order ESTIMATE → SEGMENT.
+a) **Photo pipeline and SAM's role.** Options: (1) SAM concept prompts count, Spark labels: measured 4/8 correct. (2) Spark counts and boxes, SAM box prompts make masks, and a SAM concept count cross-checks for `needsReview`: Spark 8/8 in range, SAM 32/32 masks. (3) Spark only, no SAM: simplest, but drops a required Meta model and the masks. **Recommend (2).** If accepted, these change first (SPEC outranks the contract): `docs/SPEC.md` §Features 1 ("SAM 3.1 segments items one by one and counts them", "Spark estimates … from each crop"), then `contract/openapi.yaml` `createIntakeDraft` stages (line 111), `IntakeStage` (line 825, order ESTIMATE → SEGMENT) and `DraftLine.count` (line 871, count from Spark), recorded in `docs/DECISIONS.md`.
 
 b) **D-022 upload limits and audio format.** Transcribe takes only WAV mono 16-bit PCM at 16/24 kHz. Options: (1) the browser records or converts to 16 kHz mono WAV (Web Audio / AudioWorklet PCM capture, no server dependency, larger upload: 60 s ≈ 1.9 MB); (2) the backend transcodes webm/ogg/m4a with ffmpeg (adds a binary to the image and CI). **Recommend (1)**: audio limit 60 s, `audio/wav` only in the contract. Photos: keep 10 MB (Spark inline limit is 50 MB; SAM accepted 1280 px JPEGs; larger images cost more image tokens).
 
 c) **`reasoning_effort` defaults.** **Recommend** `minimal` for photo estimation and condition structuring (same accuracy here, ~60–65% cheaper, 2–3× faster), and the model default for the allocation agent until #10 measures `minimal`. Make it configuration per call type.
 
-d) **Budget.** The spike used about $0.44 of the $15 estimate. Per-call costs: Spark image $0.004 (minimal), struct $0.002, agent ≈ $0.012 per allocation, SAM $0.0025 per image, Transcribe ≈ $0.0003 per clip. A full demo scenario is under $0.05. **Recommend** lowering the Phase 1 estimate from $25 to $5 and Phase 2 from $30 to $10, keeping the rest in reserve.
+e) **Handover recount.** SPEC §Features 5, the contract (`createHandover` line 506, `HandoverResult.count` line 1280) and D-024 ("a handover can never complete without a SAM 3.1 recount") assume a SAM concept-prompt count, which measured 4/8 here. Options: (1) keep the SAM concept count and route every disagreement with the reserved quantity to MISMATCH → `resolveHandover`: honest, but many false MISMATCHes in the demo. (2) Same path as intake option (2): Spark counts the reserved category and SAM box prompts segment each counted unit; the count matches only if SAM returns a mask for every Spark box above a confidence threshold, otherwise MISMATCH. SAM 3.1 still runs on every handover, so D-024's rule holds if it is reworded "SAM 3.1 segmentation". **Recommend (2)**, with the same SPEC → contract (lines 506, 1280) → D-024 updates as in (a).
+
+f) **Budget.** The spike used about $0.44 of the $15 estimate. Per-call costs: Spark image $0.004 (minimal), struct $0.002, agent ≈ $0.012 per allocation, SAM $0.0025 per image, Transcribe ≈ $0.0003 per clip. A full demo scenario is under $0.05. **Recommend** lowering the Phase 1 estimate from $25 to $5 and Phase 2 from $30 to $10, keeping the rest in reserve.
 
 ## 7. Not verified / risks
 
@@ -117,6 +120,7 @@ d) **Budget.** The spike used about $0.44 of the $15 estimate. Per-call costs: S
 - `minimal` effort is untested for tool calling and Korean explanations.
 - Spark responses vary between runs; all numbers are single runs per input (5 for text and tools).
 - Streaming was not used for any capability.
+- During this spike, `run.mjs` still wrote raw exchanges to `spike/out/<capability>/`, so the `minimal` re-run overwrote the default-effort `spark-image` and `spark-struct` raws. They were copied to `spark-image-default/` and `spark-struct-default/` in the local `spike/out` first. `fixtures/spike/spark-image-default/` keeps only the two cluttered photos; the default-effort struct raws are not in fixtures. `run.mjs` now writes `spike/out/<run id>/<capability>/` (Codex review).
 - Ground truth for the two cluttered photos is a judgment call (ranges in `labels.json`).
 
 ## 8. Reproduce
@@ -124,11 +128,11 @@ d) **Budget.** The spike used about $0.44 of the $15 estimate. Per-call costs: S
 From the repo root (live calls ask a human through the credit hook):
 
 ```bash
-node spike/run.mjs all --dry-run                                     # no network, prints 73 requests
+node spike/run.mjs all --dry-run                                     # no network, prints 81 requests
 node --env-file=.env spike/run.mjs all                               # ~78 calls, ~$0.27
 node --env-file=.env spike/run.mjs sam --phrase FOLDING_TABLE=table --phrase DISPLAY_RACK=shelf --phrase STORAGE_BIN="plastic crate"
 node --env-file=.env spike/run.mjs sam --phrase DISPLAY_RACK=rack
-node --env-file=.env spike/run.mjs sam-boxes                         # uses spike/out/spark-image/<photo>-1.json
+node --env-file=.env spike/run.mjs sam-boxes                         # uses the latest ok spark-image call per photo in calls.jsonl
 node --env-file=.env spike/run.mjs spark-image --effort minimal
 node --env-file=.env spike/run.mjs spark-struct --effort minimal
 node --env-file=.env spike/with-env.mjs backend/gradlew.bat -p spike/spring-ai bootRun --args=all
