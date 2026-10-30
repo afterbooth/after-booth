@@ -1148,6 +1148,10 @@ components:
         - now < item.pickupDeadline (PICKUP_CLOSED)
         - the item fits request.vehicleType (VEHICLE_TOO_SMALL)
         - Σ quantity of the request's HELD and CONFIRMED reservations + quantity ≤ request.quantity (QTY_EXCEEDS_REQUEST)
+
+        Holds for the same request are serialized: the server locks the pickup request row before reading its
+        active reservations and keeps the lock until the new reservation is written, so two concurrent holds on
+        different items cannot together exceed request.quantity.
       required: [requestId, itemId, quantity]
       properties:
         requestId:
