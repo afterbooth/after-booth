@@ -1,6 +1,6 @@
 # Review guide
 
-Every PR gets three reviews before merge. All review comments are in English.
+Every PR gets three reviews before merge, and CI must be green (`backend`, `frontend`, `hygiene`). All review comments are in English.
 
 | # | Reviewer | How | Blocks merge on |
 |---|---|---|---|
