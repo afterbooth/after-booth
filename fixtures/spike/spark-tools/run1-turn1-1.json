@@ -1,0 +1,151 @@
+{
+  "request": {
+    "method": "POST",
+    "url": "https://api.meta.ai/v1/chat/completions",
+    "body": {
+      "model": "muse-spark-1.3",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are the AfterBooth allocation agent. You match a pickup request with leftover event equipment by calling the server tools.\nRules: the server decides; never claim a hold that holdQuantity did not return as OK. Only hold items of the requested category, never more than the requested quantity.\nCheck vehicle fit before holding. If nothing of the requested category can be held, hold nothing, search other categories that fit the vehicle, and suggest one as an alternative.\nFinish with a short answer to the receiver in Korean (one or two sentences): what was held, or why it does not fit and the alternative.\nPickup request: {\"requestId\":7,\"category\":\"DISPLAY_RACK\",\"quantity\":2,\"vehicleType\":\"SEDAN\",\"purpose\":\"주말 행사 진열용\"}. Current time: 2026-10-31T15:00:00+09:00."
+        },
+        {
+          "role": "user",
+          "content": "주말 행사용 진열대 2개, 승용차밖에 없어요"
+        }
+      ],
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "searchCandidates",
+            "description": "Search available inventory items of one category whose pickup deadline has not passed. Returns item id, size in cm, condition, available quantity and pickup deadline.",
+            "parameters": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "category"
+              ],
+              "properties": {
+                "category": {
+                  "type": "string",
+                  "enum": [
+                    "DISPLAY_RACK",
+                    "STORAGE_BIN",
+                    "FOLDING_TABLE"
+                  ],
+                  "description": "Item category to search"
+                },
+                "minQuantity": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "description": "Only items with at least this many available"
+                }
+              }
+            }
+          }
+        },
+        {
+          "type": "function",
+          "function": {
+            "name": "checkVehicleFit",
+            "description": "Check on the server whether one item fits the given vehicle's cargo space. Returns fits, a reason code and the limiting dimension.",
+            "parameters": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "itemId",
+                "vehicleType"
+              ],
+              "properties": {
+                "itemId": {
+                  "type": "integer"
+                },
+                "vehicleType": {
+                  "type": "string",
+                  "enum": [
+                    "SEDAN",
+                    "SUV",
+                    "VAN",
+                    "TRUCK_1T"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        {
+          "type": "function",
+          "function": {
+            "name": "holdQuantity",
+            "description": "Ask the server to hold a quantity of one item for the pickup request (status HELD, expires in 15 minutes). The server validates availability, deadline, vehicle fit, category and the request quantity, and may refuse.",
+            "parameters": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "requestId",
+                "itemId",
+                "quantity"
+              ],
+              "properties": {
+                "requestId": {
+                  "type": "integer"
+                },
+                "itemId": {
+                  "type": "integer"
+                },
+                "quantity": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  },
+  "response": {
+    "status": 200,
+    "latencyMs": 1617,
+    "body": {
+      "id": "chatcmpl-01a18e25-0ec1-7338-9a05-dad40a82c5d4",
+      "choices": [
+        {
+          "finish_reason": "tool_calls",
+          "index": 0,
+          "message": {
+            "content": "승용차에 실을 진열대 확인하고 있습니다.",
+            "refusal": null,
+            "tool_calls": [
+              {
+                "id": "call_dadcfb6e-f689-47f2-a4ee-b4da1ad5d705",
+                "type": "function",
+                "function": {
+                  "name": "searchCandidates",
+                  "arguments": "{\"category\":\"DISPLAY_RACK\",\"minQuantity\":1}"
+                }
+              }
+            ],
+            "role": "assistant"
+          },
+          "logprobs": null
+        }
+      ],
+      "created": 1793386155,
+      "model": "muse-spark-1.3",
+      "object": "chat.completion",
+      "usage": {
+        "completion_tokens": 304,
+        "prompt_tokens": 1038,
+        "total_tokens": 1342,
+        "completion_tokens_details": {
+          "reasoning_tokens": 216
+        },
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        }
+      }
+    }
+  }
+}

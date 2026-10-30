@@ -1,0 +1,90 @@
+{
+  "request": {
+    "method": "POST",
+    "url": "https://api.meta.ai/v1/responses",
+    "body": {
+      "model": "sam-3.1",
+      "input": [
+        {
+          "type": "message",
+          "role": "user",
+          "content": [
+            {
+              "type": "input_text",
+              "text": "display rack"
+            },
+            {
+              "type": "input_image",
+              "image_url": {
+                "redactedDataUrl": "data:image/jpeg;base64",
+                "sha256": "1ef80c842d03dbebb326b13fe0d4242af5334ffe3dceb862cee19179fdcabc16",
+                "bytes": 23809
+              }
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "include_confidence": "true",
+        "mask_encoding": "one_bit"
+      }
+    }
+  },
+  "response": {
+    "status": 200,
+    "latencyMs": 1229,
+    "body": {
+      "metadata": {
+        "include_confidence": "true",
+        "mask_encoding": "one_bit"
+      },
+      "top_logprobs": 0,
+      "temperature": 1,
+      "top_p": 1,
+      "service_tier": "auto",
+      "model": "sam-3.1",
+      "background": false,
+      "tools": [],
+      "tool_choice": "auto",
+      "truncation": "disabled",
+      "id": "resp_6ae4e704fb4549bd3025466f",
+      "object": "response",
+      "status": "completed",
+      "created_at": 1793386244,
+      "completed_at": 1793386244,
+      "error": null,
+      "incomplete_details": null,
+      "output": [
+        {
+          "type": "message",
+          "id": "msg_dd41b5a3-f936-4518-8438-f5a3f5275b1c",
+          "role": "assistant",
+          "content": [
+            {
+              "type": "output_text",
+              "text": "<0f>0<|box;x1=103;y1=45;x2=463;y2=639;w=480;h=640;c=0.6952381134033203|><|mask;x=0;y=0;c=0.6952381134033203;data=595,361,!!!!&7=0tdRv*e*3[IWoaPM8QVO5W?+K/H@eq`o%Ga:=NI'#AuKG0(xRST0i=d^%t`s^.A'=I27'rDuiEp7Yg`7%&QS41c/JmA2f0$ICr:?ik7ZLwe3OxxOSh0hR$oUeFM5OQn!j=#d1?-uVdqZ8@ngRh:bxFY)E{LfixFf8R{.B.Bm(AlMrWBzukI+(-lI.Q7c%invn]fNpe3i5G6Fos:@H'/SAiv6TTapM%R-i:M&*idtU']ZLK@ko7J&4Jm4r'aK@&2)=(YQGA[[lnQxiY9DZg`v9xsVaci2?`GYdxyGFep`BMeTSNmCHKEhSJTt4[4tmx8W.1!WNUs6s'FEg`M#Y-6j+%r9??trenF7EgmQOYvjK`sLeeMWGs(jD2YHBY5PuEj&5s&EJS1KluHpEo1d2r`/c8i#X0`nypH18'?&ryNec49acAIl@qw?SPD9rQ@ke4yg@|>\n",
+              "annotations": [],
+              "logprobs": []
+            }
+          ],
+          "status": "completed"
+        }
+      ],
+      "instructions": null,
+      "usage": {
+        "input_tokens": 0,
+        "input_tokens_details": {
+          "cached_tokens": 0
+        },
+        "output_tokens": 0,
+        "output_tokens_details": {
+          "reasoning_tokens": 0
+        },
+        "total_tokens": 0,
+        "images_processed": 1
+      },
+      "parallel_tool_calls": true,
+      "store": true
+    }
+  }
+}

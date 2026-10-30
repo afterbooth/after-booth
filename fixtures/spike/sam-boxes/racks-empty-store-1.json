@@ -1,0 +1,90 @@
+{
+  "request": {
+    "method": "POST",
+    "url": "https://api.meta.ai/v1/responses",
+    "body": {
+      "model": "sam-3.1",
+      "input": [
+        {
+          "type": "message",
+          "role": "user",
+          "content": [
+            {
+              "type": "input_text",
+              "text": "<0f>1<|box;x1=3;y1=389;x2=248;y2=764;w=1280;h=768|>,2<|box;x1=273;y1=428;x2=354;y2=584;w=1280;h=768|>,3<|box;x1=335;y1=414;x2=567;y2=641;w=1280;h=768|>,4<|box;x1=500;y1=432;x2=662;y2=546;w=1280;h=768|>,5<|box;x1=665;y1=427;x2=867;y2=556;w=1280;h=768|>,6<|box;x1=830;y1=427;x2=950;y2=553;w=1280;h=768|>,7<|box;x1=988;y1=436;x2=1053;y2=541;w=1280;h=768|>,8<|box;x1=1137;y1=419;x2=1279;y2=671;w=1280;h=768|>"
+            },
+            {
+              "type": "input_image",
+              "image_url": {
+                "redactedDataUrl": "data:image/jpeg;base64",
+                "sha256": "d09eac3ae408f891334204567b8f6526b255eb0b463a475c74c4c0e1c28b06f8",
+                "bytes": 244660
+              }
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "include_confidence": "true",
+        "mask_encoding": "one_bit"
+      }
+    }
+  },
+  "response": {
+    "status": 200,
+    "latencyMs": 1978,
+    "body": {
+      "metadata": {
+        "mask_encoding": "one_bit",
+        "include_confidence": "true"
+      },
+      "top_logprobs": 0,
+      "temperature": 1,
+      "top_p": 1,
+      "service_tier": "auto",
+      "model": "sam-3.1",
+      "background": false,
+      "tools": [],
+      "tool_choice": "auto",
+      "truncation": "disabled",
+      "id": "resp_6ae4e7e4d02f3383dc8f4916",
+      "object": "response",
+      "status": "completed",
+      "created_at": 1793386468,
+      "completed_at": 1793386468,
+      "error": null,
+      "incomplete_details": null,
+      "output": [
+        {
+          "type": "message",
+          "id": "msg_295cde12-e792-462b-9613-2b47c2ed2ada",
+          "role": "assistant",
+          "content": [
+            {
+              "type": "output_text",
+              "text": "<0f>1<|box;x1=0;y1=377;x2=264;y2=767;w=1280;h=768;c=0.984375|><|mask;x=0;y=0;c=0.984375;data=391,265,!!!!$$FFzj_Xh`Kp*rs!M-1b%d9:4a9!hHhQFY^T9i)hl05_v9R$8d7mhaWnJBR-)vGU[KA#5aYty*a+40lFv4@#i[1*C$K2:hhMJ5Krpw_PI9dOa9Ask:!U?)@x6U0K&@QGIwlzi(u73.&uTTu{4#M%K1v_r%a8L^rcUq0I[KAY:oB?OSx84i]K%/@a85dl%z={ExkJ9*#['M%pfT.!f[FTQn9_/|>,2<|box;x1=284;y1=417;x2=355;y2=562;w=1280;h=768;c=0.90234375|><|mask;x=0;y=0;c=0.90234375;data=146,72,!!!!!kD-hDF+3$OF'5^cE#z^-Mc`K1_WS1{A+mm:@UD6Jf[T=0VtCip-JNQ'l4SfuGGEGxi0s-C0/?M.=&rWcVYH&vJ|>,3<|box;x1=343;y1=403;x2=578;y2=649;w=1280;h=768;c=0.96875|><|mask;x=0;y=0;c=0.96875;data=247,236,!!!!#WB7bJ_.x-fjUvL{17Ah'2!^kgAvFSGWvrkkf(2`@2XDw:$]q5ppUh[?=IHZ'rOXJ:QQocN]5l?z_Ty97E?OP`RkD-k/^(0fRS*]a1xamyx]n4RvOX1[zYZkYn2EGV'`#t+^9e{XeuNadPX`H&1+2P)`T8^qP^f^9`lJ!H%7on|>,4<|box;x1=578;y1=415;x2=686;y2=529;w=1280;h=768;c=0.8515625|><|mask;x=0;y=0;c=0.8515625;data=115,109,!!!!#/Ia!xWV6nmL/1l/)NIi:_n$GR[Hrx$II9)2q3T{fgfHZ77P_xrNlzGe!a0rIRpA7$Ya:1WXiB?TZqoqzEpoMS/?ZDz^EqJIFilx6F6W{Xl:#4InkZD_DYfnm0!!|>,5<|box;x1=678;y1=414;x2=853;y2=533;w=1280;h=768;c=0.96484375|><|mask;x=0;y=0;c=0.96484375;data=120,176,!!!!#(F9uGThl-?U%A4IKJakI.u_hs!5&p%.'S=#w_8(n3`-Uv'2$7O?!XnnHL^JZ$ot@P#5Jkz:OVh1Jqt)0vy3fhJKMunG7n9{:0vF0*acO$Te0_YW'.8.|>,6<|box;x1=848;y1=422;x2=946;y2=532;w=1280;h=768;c=0.84375|><|mask;x=0;y=0;c=0.84375;data=111,99,!!!!#-COeGw)XYKRG06=lSoZ3`y:[ZVZtqn5M#gg'U{d^%oa?(MgpEI{jT8N/Ns^H?9xYZM_vP92l7jdOVT({l[wDh03CU8/ig1QXIUJTYuk(ax?.)uhojvY+P^3T|>,7<|box;x1=1000;y1=420;x2=1072;y2=524;w=1280;h=768;c=0.66015625|><|mask;x=0;y=0;c=0.66015625;data=105,73,!!!!#$EI@9Q#d*L:*9q[lR[6TG#hev4[CHqLt_Br4uZ6xGCuuT5T8XKtbtn'81/[.eQWz_t-n!vqng#Md-Eh'.*XrPFB'@OY9ct_^Rd`*koo7jap)k[|>,8<|box;x1=1168;y1=412;x2=1279;y2=681;w=1280;h=768;c=0.9609375|><|mask;x=0;y=0;c=0.9609375;data=270,112,!!!!#!D)?D.'7x5?E$g8h*.FWlVUIq7/P^S-scT*m[nVRste7b-!OXmz7.v?-qA.rEg%438JD/H_CBD=0o5?Uq!bJsYnsVp/NLr8ukCqJq/op@O!!|>\n",
+              "annotations": [],
+              "logprobs": []
+            }
+          ],
+          "status": "completed"
+        }
+      ],
+      "instructions": null,
+      "usage": {
+        "input_tokens": 0,
+        "input_tokens_details": {
+          "cached_tokens": 0
+        },
+        "output_tokens": 0,
+        "output_tokens_details": {
+          "reasoning_tokens": 0
+        },
+        "total_tokens": 0,
+        "images_processed": 1
+      },
+      "parallel_tool_calls": true,
+      "store": true
+    }
+  }
+}

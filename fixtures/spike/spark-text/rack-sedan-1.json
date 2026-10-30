@@ -1,0 +1,48 @@
+{
+  "request": {
+    "method": "POST",
+    "url": "https://api.meta.ai/v1/chat/completions",
+    "body": {
+      "model": "muse-spark-1.3",
+      "messages": [
+        {
+          "role": "user",
+          "content": "높이 180cm 진열대가 왜 일반 승용차에 실리지 않는지 한국어 한 문장으로 설명해 주세요."
+        }
+      ]
+    }
+  },
+  "response": {
+    "status": 200,
+    "latencyMs": 4939,
+    "body": {
+      "id": "chatcmpl-01a18e23-6d36-7069-a6dd-b9c96f7bdeb2",
+      "choices": [
+        {
+          "finish_reason": "stop",
+          "index": 0,
+          "message": {
+            "content": "일반 승용차는 트렁크 입구 높이와 실내 적재 높이가 180cm에 한참 못 미치기 때문에 180cm 진열대는 세워서도 눕혀서도 실을 수 없습니다.",
+            "refusal": null,
+            "role": "assistant"
+          },
+          "logprobs": null
+        }
+      ],
+      "created": 1793386048,
+      "model": "muse-spark-1.3",
+      "object": "chat.completion",
+      "usage": {
+        "completion_tokens": 750,
+        "prompt_tokens": 35,
+        "total_tokens": 785,
+        "completion_tokens_details": {
+          "reasoning_tokens": 692
+        },
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        }
+      }
+    }
+  }
+}

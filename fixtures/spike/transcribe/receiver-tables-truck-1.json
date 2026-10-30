@@ -1,0 +1,31 @@
+{
+  "request": {
+    "method": "POST",
+    "url": "https://api.meta.ai/v1/asr/transcribe",
+    "body": {
+      "request": {
+        "model": "muse-voice-transcribe-1.0",
+        "audioEncoding": "WAV",
+        "mode": "PUSH_TO_TALK",
+        "languageBias": [
+          "Korean"
+        ]
+      },
+      "audio": {
+        "file": "audio-receiver-tables-truck.wav",
+        "sha256": "8388cafe6a812d65adb504075299b9056cbc3c137bacdd64c4e6b21e211d6a3e",
+        "bytes": 200046
+      }
+    }
+  },
+  "response": {
+    "status": 200,
+    "latencyMs": 2616,
+    "body": {
+      "sessionId": "voyager/transcribe/BB8F28641D4D4FAE89234BB39ED48C36",
+      "transcript": "저비식 테이블 다섯 개, 내일 오전 오전 열 시 전에 일 톤 트럭으로 가져갈게요.",
+      "audioDurationMs": 6320,
+      "turns": []
+    }
+  }
+}

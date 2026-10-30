@@ -1,0 +1,31 @@
+{
+  "request": {
+    "method": "POST",
+    "url": "https://api.meta.ai/v1/asr/transcribe",
+    "body": {
+      "request": {
+        "model": "muse-voice-transcribe-1.0",
+        "audioEncoding": "WAV",
+        "mode": "PUSH_TO_TALK",
+        "languageBias": [
+          "Korean"
+        ]
+      },
+      "audio": {
+        "file": "audio-receiver-bins-van.wav",
+        "sha256": "237e2b3d8d2dfb980696a683a1232e250d7f404d5e614e86eae5defb9589e0ca",
+        "bytes": 233646
+      }
+    }
+  },
+  "response": {
+    "status": 200,
+    "latencyMs": 2774,
+    "body": {
+      "sessionId": "voyager/transcribe/24B187D91091496294112DABACB85A45",
+      "transcript": "모레 오전 아홉 시 반까지 수납함 스무 개 가져갈 수 있어요. 차는 승합차예요.",
+      "audioDurationMs": 7360,
+      "turns": []
+    }
+  }
+}

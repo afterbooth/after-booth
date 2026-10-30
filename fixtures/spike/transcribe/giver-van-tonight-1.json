@@ -1,0 +1,31 @@
+{
+  "request": {
+    "method": "POST",
+    "url": "https://api.meta.ai/v1/asr/transcribe",
+    "body": {
+      "request": {
+        "model": "muse-voice-transcribe-1.0",
+        "audioEncoding": "WAV",
+        "mode": "PUSH_TO_TALK",
+        "languageBias": [
+          "Korean"
+        ]
+      },
+      "audio": {
+        "file": "audio-giver-van-tonight.wav",
+        "sha256": "8f7c478fdf769fe1760e2b196867e39051e8eeea7e700c8a779d003caad9ea29",
+        "bytes": 152206
+      }
+    }
+  },
+  "response": {
+    "status": 200,
+    "latencyMs": 2524,
+    "body": {
+      "sessionId": "voyager/transcribe/963602E13A2C4C51AD196824C68AF5D3",
+      "transcript": "오늘 저녁 여덟 시까지 철수해야 하고 승합차가 필요해요",
+      "audioDurationMs": 4800,
+      "turns": []
+    }
+  }
+}

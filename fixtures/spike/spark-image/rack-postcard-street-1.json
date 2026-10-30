@@ -1,0 +1,180 @@
+{
+  "request": {
+    "method": "POST",
+    "url": "https://api.meta.ai/v1/chat/completions",
+    "body": {
+      "model": "muse-spark-1.3",
+      "messages": [
+        {
+          "role": "user",
+          "content": [
+            {
+              "type": "text",
+              "text": "You are an object grounding expert helping register leftover event equipment. Find every display rack (shelving, gondola, rack for showing goods), storage bin (plastic box, tote, crate) and folding table in the image. Ensure the objects accurately match and do not miss any objects. Return one entry per category with: category (DISPLAY_RACK, STORAGE_BIN, FOLDING_TABLE, or OTHER for other furniture worth reusing), count (number of separate physical units), sizeCm (approximate size of one unit in centimeters: width, depth, height), condition (GOOD, FAIR or POOR), confidence (0-1, how sure you are about category, count and size), and boxes (one bounding box per unit as x_min, y_min, x_max, y_max on a normalized 0-1000 grid with (0,0) at the top-left). Omit categories that are not present."
+            },
+            {
+              "type": "image_url",
+              "image_url": {
+                "url": {
+                  "redactedDataUrl": "data:image/jpeg;base64",
+                  "sha256": "5ee2c2b4a6f6cf204b0a8c993a8c046d6de6b67adde4cb355aeb04e38181cb20",
+                  "bytes": 687177
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "response_format": {
+        "type": "json_schema",
+        "json_schema": {
+          "name": "IntakeEstimate",
+          "schema": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "items"
+            ],
+            "properties": {
+              "items": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "category",
+                    "count",
+                    "sizeCm",
+                    "condition",
+                    "confidence",
+                    "boxes"
+                  ],
+                  "properties": {
+                    "category": {
+                      "type": "string",
+                      "enum": [
+                        "DISPLAY_RACK",
+                        "STORAGE_BIN",
+                        "FOLDING_TABLE",
+                        "OTHER"
+                      ]
+                    },
+                    "count": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "sizeCm": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "width",
+                        "depth",
+                        "height"
+                      ],
+                      "properties": {
+                        "width": {
+                          "type": "integer",
+                          "minimum": 1
+                        },
+                        "depth": {
+                          "type": "integer",
+                          "minimum": 1
+                        },
+                        "height": {
+                          "type": "integer",
+                          "minimum": 1
+                        }
+                      }
+                    },
+                    "condition": {
+                      "type": "string",
+                      "enum": [
+                        "GOOD",
+                        "FAIR",
+                        "POOR"
+                      ]
+                    },
+                    "confidence": {
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 1
+                    },
+                    "boxes": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "required": [
+                          "x_min",
+                          "y_min",
+                          "x_max",
+                          "y_max"
+                        ],
+                        "properties": {
+                          "x_min": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 1000
+                          },
+                          "y_min": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 1000
+                          },
+                          "x_max": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 1000
+                          },
+                          "y_max": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 1000
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "reasoning_effort": "minimal"
+    }
+  },
+  "response": {
+    "status": 200,
+    "latencyMs": 3253,
+    "body": {
+      "id": "chatcmpl-01a18e2b-9cfc-7105-ab2d-d4d7cdbf8bcb",
+      "choices": [
+        {
+          "finish_reason": "stop",
+          "index": 0,
+          "message": {
+            "content": "{\"items\": [{\"boxes\": [{\"x_max\": 422, \"x_min\": 14, \"y_max\": 1000, \"y_min\": 102}], \"category\": \"DISPLAY_RACK\", \"condition\": \"GOOD\", \"confidence\": 0.95, \"count\": 1, \"sizeCm\": {\"depth\": 40, \"height\": 175, \"width\": 60}}]}",
+            "refusal": null,
+            "role": "assistant"
+          },
+          "logprobs": null
+        }
+      ],
+      "created": 1793386585,
+      "model": "muse-spark-1.3",
+      "object": "chat.completion",
+      "usage": {
+        "completion_tokens": 315,
+        "prompt_tokens": 1064,
+        "total_tokens": 1379,
+        "completion_tokens_details": {
+          "reasoning_tokens": 219
+        },
+        "prompt_tokens_details": {
+          "cached_tokens": 81
+        }
+      }
+    }
+  }
+}
