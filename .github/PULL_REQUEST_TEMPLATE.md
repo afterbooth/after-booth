@@ -36,7 +36,7 @@ Not verified: <!-- or None -->
 
 ## Review
 
-- [ ] Claude `reviewer`: <!-- RESULT line, or "not run — reason" -->
+- [ ] Claude `reviewer`: <!-- verdict and counts, or "not run — reason" -->
 - [ ] Codex: <!-- verdict and findings fixed, or "not run — reason" -->
 - [ ] Meta AI: <!-- which model is involved and what action its output leads to, or None -->
 

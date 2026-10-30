@@ -102,9 +102,9 @@ Sources of truth, in order: `docs/SPEC.md` (what to build) → `contract/openapi
 | AI pipeline | `docs/SPEC.md` §Features, `contract/openapi.yaml` (intake, conditions, allocation, handover), `docs/ERD.md`, `spike/REPORT.md`, `docs/BUDGET.md`, `docs/DECISIONS.md` D-010, D-018 |
 | Frontend screen | `docs/SPEC.md` §Screens and §Demo scenario, `contract/openapi.yaml`, `docs/DECISIONS.md` D-019, D-021, `docs/CONVENTIONS.md` §Frontend code, `docs/templates/frontend/` |
 | Contract or ERD change | `contract/openapi.yaml`, `docs/ERD.md`, `docs/DECISIONS.md` |
-| Review | `docs/REVIEW_GUIDE.md`, `docs/SPEC.md`, `contract/openapi.yaml`, `docs/ERD.md` |
+| Review | `docs/REVIEW_GUIDE.md` (§Review format, §Re-review format, §Checklist), the PR description and its issue, `docs/SPEC.md`, `contract/openapi.yaml`, `docs/ERD.md` |
 | E2E and demo | `docs/SPEC.md` §Demo scenario, `docs/BUDGET.md` |
-| Commits, PRs, issues | `docs/CONVENTIONS.md` §Git workflow, §Commit messages, §Pull requests |
+| Commits, PRs, issues | `docs/CONVENTIONS.md` §Writing issues, PRs and reviews, §Git workflow, §Commit messages, §Pull requests; `.github/PULL_REQUEST_TEMPLATE.md`, `.github/ISSUE_TEMPLATE/` |
 | Submission material | `README.md`, `docs/SPEC.md` §Hackathon constraints, `docs/REVIEW_GUIDE.md` §Checklist |
 
 ## Doc map
