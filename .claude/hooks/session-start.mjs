@@ -29,6 +29,6 @@ if (existsSync(tasks)) {
   const blocked = (text.match(/^\s*- \[[ x]\].*BLOCKED/gim) || []).length
   console.log(
     `[after-booth] TASKS.md: done ${done} / open ${open} / BLOCKED ${blocked}. ` +
-      'Read CLAUDE.md, docs/TASKS.md, docs/DECISIONS.md and docs/AGENT_MISTAKES.md before continuing.',
+      'Read AGENTS.md, docs/TASKS.md, docs/DECISIONS.md and docs/AGENT_MISTAKES.md before continuing.',
   )
 }

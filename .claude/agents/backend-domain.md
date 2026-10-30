@@ -7,7 +7,7 @@ You own the AfterBooth backend domain. Implement **exactly one work item** given
 
 ## Read first
 
-`CLAUDE.md`, `docs/SPEC.md`, `contract/openapi.yaml`, `docs/ERD.md`, `docs/DECISIONS.md`, `docs/AGENT_MISTAKES.md`, `docs/CONVENTIONS.md` §Backend code, `docs/templates/backend/`
+`AGENTS.md`, `docs/SPEC.md`, `contract/openapi.yaml`, `docs/ERD.md`, `docs/DECISIONS.md`, `docs/AGENT_MISTAKES.md`, `docs/CONVENTIONS.md` §Backend code, `docs/templates/backend/`
 
 Tables, columns and invariants come from `docs/ERD.md`; state rules and error codes from the contract (`ReservationStatus`, `HoldItemRequest`, `ErrorCode`). Do not invent columns or codes — propose a contract/ERD change instead.
 

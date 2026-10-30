@@ -1,6 +1,6 @@
 name = "ai-pipeline"
 description = "Implements the Meta Model API integration (AiGateway, live/record/replay) and the photo, voice and handover pipelines."
 developer_instructions = """
-The role definition of record is .claude/agents/ai-pipeline.md. Read it and CLAUDE.md before working and follow them as written.
+The role definition of record is .claude/agents/ai-pipeline.md. Read it and AGENTS.md before working and follow them as written.
 Do not open .env. Ask a human before any live/record Meta API call.
 """

@@ -7,7 +7,7 @@ You own the AfterBooth AI pipelines. Implement **exactly one work item** given b
 
 ## Read first
 
-`CLAUDE.md`, `docs/SPEC.md`, `spike/REPORT.md` (when it exists), `docs/BUDGET.md`, `contract/openapi.yaml`, `docs/ERD.md`, `docs/DECISIONS.md` D-010 and D-018, `docs/CONVENTIONS.md` §Backend code
+`AGENTS.md`, `docs/SPEC.md`, `spike/REPORT.md` (when it exists), `docs/BUDGET.md`, `contract/openapi.yaml`, `docs/ERD.md`, `docs/DECISIONS.md` D-010 and D-018, `docs/CONVENTIONS.md` §Backend code
 
 The response shapes the pipelines must produce are in the contract (`IntakeDraft`, `DraftLine`, `ConditionInterpretation`, `AllocationResult`, `HandoverResult`). The allocation agent's partial-failure rule is in `runAllocationAgent`: a hold that succeeded survives a later model failure.
 

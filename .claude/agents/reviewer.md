@@ -8,7 +8,7 @@ You are the AfterBooth verifier. Run **exactly one mode** as instructed by the o
 
 ## Review mode
 
-Sources: `CLAUDE.md`, `docs/SPEC.md`, `contract/openapi.yaml`, `docs/ERD.md`, `docs/DECISIONS.md`, `docs/CONVENTIONS.md`, `docs/REVIEW_GUIDE.md`
+Sources: `AGENTS.md`, `docs/SPEC.md`, `contract/openapi.yaml`, `docs/ERD.md`, `docs/DECISIONS.md`, `docs/CONVENTIONS.md`, `docs/REVIEW_GUIDE.md`
 
 Write the review in English in the `docs/REVIEW_GUIDE.md` §Review format, so it can be posted to the PR as is. For a re-review, use §Re-review format and keep the finding IDs from the previous round.
 

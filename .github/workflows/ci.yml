@@ -82,4 +82,10 @@ jobs:
           if [ -s changed.txt ]; then
             tr '\n' '\0' < changed.txt | xargs -0 node scripts/secret-scan.mjs
           fi
+      - name: AGENTS.md is the only rulebook
+        # a CLAUDE.md would replace AGENTS.md for Claude Code and be ignored by Muse Code (docs/DECISIONS.md D-026)
+        run: |
+          for f in CLAUDE.md .claude/CLAUDE.md; do
+            if [ -e "$f" ]; then echo "::error file=$f::Remove $f; put rules in AGENTS.md"; exit 1; fi
+          done
       # The PR title and description are checked in pr-description.yml, which also re-runs when they are edited

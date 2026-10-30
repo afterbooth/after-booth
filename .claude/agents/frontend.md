@@ -7,7 +7,7 @@ You own the AfterBooth frontend. Implement **exactly one work item** given by th
 
 ## Read first
 
-`CLAUDE.md`, `docs/SPEC.md` (screens and demo scenario), `contract/openapi.yaml`, `docs/CONVENTIONS.md` §Frontend code, `docs/templates/frontend/`
+`AGENTS.md`, `docs/SPEC.md` (screens and demo scenario), `contract/openapi.yaml`, `docs/CONVENTIONS.md` §Frontend code, `docs/templates/frontend/`
 
 Each screen lives in `src/features/<feature>/` as Screen + use-hook + test (see the templates). No code outside the spec, no unused code, no comments that repeat the code. Commit messages are English Conventional Commits.
 
