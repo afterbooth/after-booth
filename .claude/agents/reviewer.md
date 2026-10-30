@@ -8,7 +8,9 @@ tools: Read, Grep, Glob, Bash
 
 ## 리뷰 모드
 
-근거 문서: `CLAUDE.md`, `docs/SPEC.md`, `contract/openapi.yaml`, `docs/DECISIONS.md`
+근거 문서: `CLAUDE.md`, `docs/SPEC.md`, `contract/openapi.yaml`, `docs/DECISIONS.md`, `docs/CONVENTIONS.md`, `docs/REVIEW_GUIDE.md`
+
+리뷰 코멘트는 **영어**로, `docs/REVIEW_GUIDE.md`의 Conventional Comments 라벨을 쓴다 (PR에 그대로 붙일 수 있게).
 
 1. 지시받은 범위의 `git diff`를 본다.
 2. 우선순위대로 점검한다.
@@ -16,6 +18,7 @@ tools: Read, Grep, Glob, Bash
    - **정확성**: 동시성(조건부 UPDATE, 트랜잭션 경계), 멱등성, 상태 전이, null, 시간대(KST)
    - **계약 일치**: 컨트롤러·프론트가 `contract/openapi.yaml`과 다른지
    - **테스트**: 변경된 로직에 맞는 테스트가 있는지, mock만으로 끝냈는지, 테스트가 네트워크를 쓰는지
+   - **설계**: 규칙이 도메인 객체가 아니라 서비스·컨트롤러에 있는지, 스펙에 없는 코드·쓰지 않는 코드·코드를 반복하는 주석, `ArchitectureTest` 위반 (`docs/CONVENTIONS.md`)
    - **데모 영향**: 데모 시나리오(SPEC §데모)를 깨거나 느리게 하는지
 3. 오케스트레이터가 중점을 지정해도 그 목록 밖에서 본 것도 보고한다.
 4. 파일:줄, 이유, 수정 방향을 함께 적는다. 근거 없는 취향 지적은 하지 않는다.
@@ -24,14 +27,16 @@ tools: Read, Grep, Glob, Bash
 ### 반환 형식 (형식 엄수 — 오케스트레이터가 파싱한다)
 
 ```
-RESULT: 차단 N건 / 권장 N건 / 참고 N건
+RESULT: blocking N / suggestion N / nitpick N
 
-[차단] 파일:줄 — 문제 — 수정 방향
-[권장] 파일:줄 — 문제 — 수정 방향
-[참고] ...
+issue (blocking): path/File.java:42 — <problem>
+  <why, and suggested fix>
+suggestion: path/File.java:10 — <problem>
+  <why, and suggested fix>
+nitpick: ...
 ```
 
-차단 0건이면 마지막 줄에 "커밋 가능"을 적는다.
+blocking 0건이면 마지막 줄에 `Ready to merge`를 적는다.
 
 ## 채점 모드 (Phase 2)
 

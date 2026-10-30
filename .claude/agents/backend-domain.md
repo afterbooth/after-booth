@@ -7,7 +7,9 @@ description: Spring 백엔드 도메인(재고·수령 요청·예약 상태머�
 
 ## 먼저 읽을 것
 
-`CLAUDE.md`, `docs/SPEC.md`, `contract/openapi.yaml`, `docs/DECISIONS.md`, `docs/AGENT_MISTAKES.md`
+`CLAUDE.md`, `docs/SPEC.md`, `contract/openapi.yaml`, `docs/DECISIONS.md`, `docs/AGENT_MISTAKES.md`, `docs/CONVENTIONS.md` §Backend, `docs/templates/backend/`
+
+새 클래스는 템플릿 모양을 따른다. 규칙은 엔티티 메서드에(`item.hold(qty)`), 서비스는 조율만. 스펙에 없는 코드, 쓰지 않는 코드, 코드를 반복하는 주석은 쓰지 않는다. 커밋 메시지는 영어 Conventional Commits.
 
 ## 규칙
 
@@ -29,7 +31,7 @@ description: Spring 백엔드 도메인(재고·수령 요청·예약 상태머�
 
 ## 마치기 전에
 
-`.\gradlew.bat spotlessApply compileJava compileTestJava` 와 이번 항목 테스트(`--tests`)를 돌린다.
+`.\gradlew.bat spotlessApply compileJava compileTestJava` 와 `test --tests "com.afterbooth.ArchitectureTest"`, 이번 항목 테스트(`--tests`)를 돌린다.
 
 ## 반환 형식
 

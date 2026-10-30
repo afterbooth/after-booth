@@ -7,6 +7,7 @@ Codex·Muse Code 등 AGENTS.md를 읽는 에이전트용 진입점이다. **규�
 1. `CLAUDE.md` — 절대 규칙, STOP 게이트, 파일 소유권, 명령어
 2. `docs/TASKS.md` — 지금 어디까지 했는지
 3. `docs/AGENT_MISTAKES.md` — 이 PC에서 재현된 함정
+4. `docs/CONVENTIONS.md`, `docs/templates/` — 코드·커밋 규칙과 템플릿. 리뷰는 `docs/REVIEW_GUIDE.md` 형식(영어)으로 쓴다
 
 ## 도구별 차이
 

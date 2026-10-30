@@ -1,0 +1,42 @@
+name: Feature
+description: A user-facing feature or a vertical slice (backend + frontend)
+labels: ["type:feature"]
+body:
+  - type: textarea
+    id: goal
+    attributes:
+      label: Goal
+      description: What the user can do when this is done, and which part of docs/SPEC.md it covers.
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope
+      description: Backend, AI, frontend and contract pieces. List what is out of scope.
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: Checkable statements. Include the tests that must exist.
+      value: |
+        - [ ]
+    validations:
+      required: true
+  - type: dropdown
+    id: meta
+    attributes:
+      label: Meta models involved
+      multiple: true
+      options:
+        - None
+        - Muse Spark
+        - SAM 3.1
+        - Muse Voice Transcribe
+  - type: textarea
+    id: notes
+    attributes:
+      label: Notes
+      description: Dependencies, risks, links.

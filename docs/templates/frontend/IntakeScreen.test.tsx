@@ -1,0 +1,60 @@
+// TEMPLATE: screen test. Fix the API with MSW, act like a user, assert what the user sees.
+import { render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { http, HttpResponse } from 'msw'
+import { setupServer } from 'msw/node'
+import { afterAll, afterEach, beforeAll, expect, test } from 'vitest'
+import { IntakeScreen } from './IntakeScreen'
+
+const server = setupServer()
+beforeAll(() => server.listen())
+afterEach(() => server.resetHandlers())
+afterAll(() => server.close())
+
+test('사진을 올리면 품목별 개수를 보여준다', async () => {
+  server.use(
+    http.post('*/api/intake/drafts', () =>
+      HttpResponse.json({
+        id: 1,
+        items: [{ category: 'DISPLAY_RACK', label: '진열대', count: 4, needsReview: false }],
+      }),
+    ),
+  )
+  render(<IntakeScreen />)
+
+  await userEvent.upload(
+    screen.getByLabelText('부스 사진 찍기'),
+    new File(['x'], 'booth.jpg', { type: 'image/jpeg' }),
+  )
+
+  expect(await screen.findByText('진열대 4개')).toBeInTheDocument()
+})
+
+test('분석 중에는 사진을 다시 고를 수 없다', async () => {
+  server.use(http.post('*/api/intake/drafts', () => new Promise<never>(() => {})))
+  render(<IntakeScreen />)
+  const input = screen.getByLabelText('부스 사진 찍기')
+
+  await userEvent.upload(input, new File(['x'], 'booth.jpg', { type: 'image/jpeg' }))
+
+  expect(input).toBeDisabled()
+})
+
+test('분석에 실패하면 다시 찍으라고 안내한다', async () => {
+  server.use(
+    http.post('*/api/intake/drafts', () =>
+      HttpResponse.json(
+        { code: 'INTERNAL_ERROR', message: '사진을 분석하지 못했어요. 다시 찍어 주세요.' },
+        { status: 500 },
+      ),
+    ),
+  )
+  render(<IntakeScreen />)
+
+  await userEvent.upload(
+    screen.getByLabelText('부스 사진 찍기'),
+    new File(['x'], 'booth.jpg', { type: 'image/jpeg' }),
+  )
+
+  expect(await screen.findByRole('alert')).toHaveTextContent('다시 찍어 주세요')
+})

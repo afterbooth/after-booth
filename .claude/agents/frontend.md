@@ -7,7 +7,9 @@ description: React 프론트 3개 화면(촬영·등록, 수령 요청, 배정 �
 
 ## 먼저 읽을 것
 
-`CLAUDE.md`, `docs/SPEC.md`(화면·데모 시나리오), `contract/openapi.yaml`
+`CLAUDE.md`, `docs/SPEC.md`(화면·데모 시나리오), `contract/openapi.yaml`, `docs/CONVENTIONS.md` §Frontend, `docs/templates/frontend/`
+
+화면은 `src/features/<feature>/`에 Screen + use훅 + 테스트로 둔다 (템플릿 참고). 스펙에 없는 코드, 쓰지 않는 코드, 코드를 반복하는 주석은 쓰지 않는다. 커밋 메시지는 영어 Conventional Commits.
 
 ## 규칙
 

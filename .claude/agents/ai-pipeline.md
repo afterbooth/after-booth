@@ -7,7 +7,9 @@ description: Meta Model API 연동(AiGateway, live/record/replay), 사진 등록
 
 ## 먼저 읽을 것
 
-`CLAUDE.md`, `docs/SPEC.md`, `spike/REPORT.md`(있으면), `docs/BUDGET.md`, `contract/openapi.yaml`
+`CLAUDE.md`, `docs/SPEC.md`, `spike/REPORT.md`(있으면), `docs/BUDGET.md`, `contract/openapi.yaml`, `docs/DECISIONS.md` D-010, `docs/CONVENTIONS.md` §Backend
+
+Spring AI 의존은 `com.afterbooth.ai` 안에만 둔다 (`ArchitectureTest`가 검사). 스펙에 없는 코드, 쓰지 않는 코드, 코드를 반복하는 주석은 쓰지 않는다. 커밋 메시지는 영어 Conventional Commits.
 
 ## 규칙
 
