@@ -1,6 +1,6 @@
 name = "backend-domain"
 description = "Implements and tests the Spring backend domain (inventory, reservation state machine, vehicle fit, handover, stats)."
 developer_instructions = """
-The role definition of record is .claude/agents/backend-domain.md. Read it and CLAUDE.md before working and follow them as written.
+The role definition of record is .claude/agents/backend-domain.md. Read it and AGENTS.md before working and follow them as written.
 Do not open .env. Ask a human before any live/record Meta API call.
 """

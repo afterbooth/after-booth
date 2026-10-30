@@ -29,4 +29,4 @@ cd frontend && npm install && npm run dev        # or npm run dev:mock without b
 
 ## Development tools
 
-Developed with Claude Code and Codex as coding agents, and Muse Code. Agent harness: [`CLAUDE.md`](CLAUDE.md), [`AGENTS.md`](AGENTS.md), [`.claude/`](.claude).
+Developed with Claude Code and Codex as coding agents, and Muse Code. Agent harness: [`AGENTS.md`](AGENTS.md) (one rulebook for every agent), [`.claude/`](.claude).

@@ -8,7 +8,7 @@ Everything in the repository is English. Only text that Korean users see is Kore
 
 | What | Language |
 |---|---|
-| Docs, harness files (`CLAUDE.md`, agents, skills), README, submission text, demo script | English |
+| Docs, harness files (`AGENTS.md`, agents, skills), README, submission text, demo script | English |
 | Commit messages, PR titles and descriptions, issues, review comments | English |
 | Code identifiers, code comments, test names | English |
 | Product UI text and user-facing error messages (`ErrorCode` messages) | Korean |
@@ -83,7 +83,7 @@ Bad: `update code`, `fix bug`, `WIP`, `feat: 수량 차감 추가`
 |---|---|
 | `backend` | `./gradlew build`: compile, spotlessCheck, every test including Testcontainers |
 | `frontend` | `npm ci`, then build (regenerates the client from the contract), test, lint, format:check |
-| `hygiene` | secret scan of changed files |
+| `hygiene` | secret scan of changed files; no `CLAUDE.md` next to `AGENTS.md` |
 | `pr-description` | PR title as an English Conventional Commit; description follows the PR template (`scripts/check-pr-body.mjs`); re-runs on edit |
 
 CI runs with `AI_MODE=replay` and no Meta key.

@@ -1,6 +1,6 @@
 name = "demo-qa"
 description = "Owns the demo scenario Playwright E2E and the demo script. Never modifies implementation code."
 developer_instructions = """
-The role definition of record is .claude/agents/demo-qa.md. Read it and CLAUDE.md before working and follow them as written.
+The role definition of record is .claude/agents/demo-qa.md. Read it and AGENTS.md before working and follow them as written.
 Do not open .env. Ask a human before any live/record Meta API call.
 """

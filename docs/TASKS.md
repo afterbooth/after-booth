@@ -7,12 +7,13 @@ The unit of work is a GitHub issue. Owners: **DY** = namdongyeob, **WJ** = WookJ
 
 - [x] 0-1 Repo layout: backend/, frontend/, contract/, docs/, fixtures/, spike/, docker-compose, .gitignore
 - [x] 0-2 docs/SPEC.md, TASKS.md, DECISIONS.md (+ BUDGET.md, AGENT_MISTAKES.md)
-- [x] 0-3 Harness: CLAUDE.md, AGENTS.md, five .claude agents, feature skill, hooks, .codex
+- [x] 0-3 Harness: AGENTS.md (single rulebook, #25), five .claude agents, feature skill, hooks, .codex
 - [x] 0-3b Conventions, review guide, code templates, PR/issue templates, commit-msg hook, ArchitectureTest
 - [x] #18 Translate docs, harness and code comments to English (DY)
 - [x] #1 Contract draft + `docs/ERD.md` (DY)
 - [x] #21 CI checks, required on main (DY)
 - [x] #23 Conclusion-first, traceable issue/PR/review templates + `pr-description` check (DY)
+- [x] #25 One rulebook: `AGENTS.md` for every agent, `CLAUDE.md` removed (DY)
 - [ ] #2 Spike: model list, Spark text/image/function calling, SAM 3.1, Transcribe, cost → spike/REPORT.md (DY, key A)
 - [ ] **G0 STOP** — report the REPORT summary and the decisions for humans
 

@@ -10,14 +10,14 @@ Finish one GitHub issue as a PR. Argument: issue number (e.g. `/feature 12`).
 ## Before you start
 
 1. Read the goal, scope and acceptance criteria with `gh issue view <number>`. Check that the assignee is you (the current gh account).
-2. Read only the docs in the `CLAUDE.md` doc routing row for this kind of task. Always read `docs/AGENT_MISTAKES.md`.
+2. Read only the docs in the `AGENTS.md` doc routing row for this kind of task. Always read `docs/AGENT_MISTAKES.md`.
 3. Check existing changes with `git status --short --branch`. Never mix in or revert someone else's changes.
 4. Create a worktree and branch: `git worktree add .claude/worktrees/<number>-<slug> -b <type>/<number>-<slug> origin/main`
 5. If the contract must change, make a first commit that touches only `contract/` and record it in `docs/DECISIONS.md`.
 
 ## Build loop (per acceptance criterion)
 
-1. **Implement**: give one item to the one agent that owns those files (CLAUDE.md table). Pass: issue number, item, acceptance criteria, relevant contract and template paths, the last failure log (on retry).
+1. **Implement**: give one item to the one agent that owns those files (AGENTS.md file ownership table). Pass: issue number, item, acceptance criteria, relevant contract and template paths, the last failure log (on retry).
 2. **Check**: the main session confirms the actual diff matches the item and the files reported. Send back changes outside file ownership, code outside the spec and unused code.
 3. **Verify**: the main session runs these itself.
    - backend: `.\gradlew.bat spotlessApply compileJava compileTestJava` + `test --tests "com.afterbooth.ArchitectureTest"` + this item's tests (Testcontainers from the PowerShell tool)

@@ -62,6 +62,6 @@ spotless {
 
 tasks.named('test') {
 	useJUnitPlatform()
-	// Automated tests never call the Meta API (CLAUDE.md hard rule 4)
+	// Automated tests never call the Meta API (AGENTS.md hard rule 4)
 	environment 'AI_MODE', 'replay'
 }
