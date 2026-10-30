@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: AfterBooth API
-  version: 0.1.0
+  version: 0.2.0
   description: |
     API contract of record. The frontend generates its client and MSW mocks from this file (frontend `npm run gen:api`).
     Contract changes go in a separate commit that touches only contract/, recorded in docs/DECISIONS.md.
@@ -30,7 +30,7 @@ tags:
   - name: catalog
     description: Seeded organizations and events
   - name: intake
-    description: Photo → SAM 3.1 count → Muse Spark estimate → inventory draft → confirm
+    description: Photo → Muse Spark count and estimate → SAM 3.1 segmentation → inventory draft → confirm
   - name: conditions
     description: Voice or text → Voice Transcribe → Muse Spark structured conditions
   - name: inventory
@@ -108,8 +108,9 @@ paths:
       summary: Upload a booth photo and start the counting pipeline
       description: |
         Returns immediately with status PROCESSING. Poll `getIntakeDraft` (about once a second) until READY or FAILED.
-        Stages: SEGMENT (SAM 3.1 separates and counts items) → ESTIMATE (Muse Spark estimates category, size and
-        condition per crop, with confidence). On FAILED, upload again with a new Idempotency-Key.
+        Stages: ESTIMATE (Muse Spark finds and counts items per category, with a box per item, size, condition and
+        confidence) → SEGMENT (SAM 3.1 segments each item from Spark's boxes). On FAILED, upload again with a new
+        Idempotency-Key.
       parameters:
         - $ref: '#/components/parameters/IdempotencyKey'
       requestBody:
@@ -126,7 +127,7 @@ paths:
                 photo:
                   type: string
                   format: binary
-                  description: JPEG or PNG, up to 10 MB (provisional until spike #2)
+                  description: JPEG or PNG, up to 10 MB
       responses:
         '202':
           description: Accepted, processing
@@ -221,7 +222,10 @@ paths:
                 audio:
                   type: string
                   format: binary
-                  description: MediaRecorder output (webm/ogg/m4a/wav), up to 60 seconds (provisional until spike #2)
+                  description: |
+                    WAV (`audio/wav`) only: RIFF, mono, 16-bit PCM, 16 kHz, up to 60 seconds. The browser records
+                    PCM and encodes the WAV itself; the server does not transcode. Anything else is 415
+                    UNSUPPORTED_REQUEST.
                 text:
                   type: string
                   maxLength: 500
@@ -503,8 +507,10 @@ paths:
       tags: [handover]
       summary: Recount a CONFIRMED reservation from one pickup photo
       description: |
-        SAM 3.1 counts the items in the photo and the server writes a `handover_log` row.
-        - Count equals the reserved quantity: the reservation becomes HANDED_OVER with `handedOverQty` = quantity,
+        Muse Spark counts the items of the reserved category in the photo, SAM 3.1 segments each counted item from
+        Spark's boxes, and the server writes a `handover_log` row. The count matches only if it equals the reserved
+        quantity and SAM returned a mask above the configured confidence threshold for every box.
+        - Count matches: the reservation becomes HANDED_OVER with `handedOverQty` = quantity,
           the log row gets `accepted_qty` at once, and the reuse is recorded. No `resolveHandover` call follows.
         - Otherwise: the result is MISMATCH and the reservation stays CONFIRMED. The person either retakes the photo
           (a new call with a new Idempotency-Key; the newest log row supersedes older ones) or settles it with
@@ -548,7 +554,8 @@ paths:
       summary: A person settles a count mismatch and completes the handover
       description: |
         Only after a photo count: the reservation must be CONFIRMED and its newest `handover_log` row must be
-        MISMATCH, otherwise 409 INVALID_TRANSITION. A handover can never complete without a SAM 3.1 recount.
+        MISMATCH, otherwise 409 INVALID_TRANSITION. A handover can never complete without a photo recount with SAM 3.1
+        segmentation.
         `acceptedQty` greater than the reserved quantity fails with 400 INVALID_INPUT.
 
         In one transaction: the newest MISMATCH log row gets `accepted_qty`, the reservation becomes HANDED_OVER
@@ -822,8 +829,10 @@ components:
 
     IntakeStage:
       type: string
-      description: SEGMENT = SAM 3.1 separation and counting; ESTIMATE = Muse Spark category, size and condition
-      enum: [SEGMENT, ESTIMATE]
+      description: |
+        Runs ESTIMATE first, then SEGMENT. ESTIMATE = Muse Spark finds and counts items with category, box, size and
+        condition; SEGMENT = SAM 3.1 segments each item from Spark's boxes
+      enum: [ESTIMATE, SEGMENT]
 
     IntakeDraft:
       type: object
@@ -868,11 +877,11 @@ components:
         count:
           type: integer
           minimum: 0
-          description: Items SAM 3.1 separated for this category
+          description: Items Muse Spark counted for this category
           example: 4
         boxes:
           type: array
-          description: One box per counted item, for the overlay
+          description: One box per counted item, for the overlay. SAM 3.1's box when it segmented the item, else Spark's
           items:
             $ref: '#/components/schemas/BoundingBox'
         sizeCm:
@@ -887,7 +896,9 @@ components:
           example: 0.86
         needsReview:
           type: boolean
-          description: True when confidence is below the configured threshold or category is UNKNOWN
+          description: |
+            True when confidence is below the configured threshold, the category is UNKNOWN, SAM 3.1 could not segment
+            one of the boxes, or an optional SAM 3.1 count disagrees with `count`
 
     ConfirmIntakeRequest:
       type: object
@@ -1277,7 +1288,7 @@ components:
           description: The reserved quantity
         countedQty:
           type: integer
-          description: SAM 3.1 count from the photo
+          description: Muse Spark count of the reserved category in the photo
         boxes:
           type: array
           items:
