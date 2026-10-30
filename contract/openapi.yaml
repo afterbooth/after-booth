@@ -21,6 +21,10 @@ info:
       500 `INTERNAL_ERROR`, and 405/415 `UNSUPPORTED_REQUEST` for a wrong method or content type (for example an
       audio format Voice Transcribe does not accept).
     - There is no sign-in. Screens pick the organization from `listOrganizations`.
+    - Photo counting (intake and handover): Muse Spark finds and counts items and returns a box per item; SAM 3.1
+      then segments each box (box prompts). "SAM segmented an item" means SAM returned a mask for its box with a
+      score at or above the configured `afterbooth.ai.sam.min-score`. A completed SAM call may segment none of the
+      boxes; that is a result, not a failure. A SAM call that errors or times out is a failure.
     - AI proposes, the server decides: the allocation agent can create at most a HELD reservation, and every tool
       call is validated by the same rules as `holdItem`.
 servers:
@@ -109,8 +113,9 @@ paths:
       description: |
         Returns immediately with status PROCESSING. Poll `getIntakeDraft` (about once a second) until READY or FAILED.
         Stages: ESTIMATE (Muse Spark finds and counts items per category, with a box per item, size, condition and
-        confidence) → SEGMENT (SAM 3.1 segments each item from Spark's boxes). On FAILED, upload again with a new
-        Idempotency-Key.
+        confidence) → SEGMENT (SAM 3.1 segments each item from Spark's boxes). A Spark failure makes the draft FAILED
+        at stage ESTIMATE. A SAM failure does not: the draft becomes READY with Spark's boxes and every line has
+        `needsReview` true. On FAILED, upload again with a new Idempotency-Key.
       parameters:
         - $ref: '#/components/parameters/IdempotencyKey'
       requestBody:
@@ -224,11 +229,15 @@ paths:
                   format: binary
                   description: |
                     WAV (`audio/wav`) only: RIFF, mono, 16-bit PCM, 16 kHz, up to 60 seconds. The browser records
-                    PCM and encodes the WAV itself; the server does not transcode. Anything else is 415
-                    UNSUPPORTED_REQUEST.
+                    PCM and encodes the WAV itself; the server does not transcode. Another container or codec
+                    (webm, ogg, m4a, compressed WAV) is 415 UNSUPPORTED_REQUEST. A PCM WAV that is not mono 16 kHz,
+                    or is longer than 60 seconds, is 400 INVALID_INPUT.
                 text:
                   type: string
                   maxLength: 500
+            encoding:
+              audio:
+                contentType: audio/wav
       responses:
         '200':
           description: OK
@@ -508,8 +517,10 @@ paths:
       summary: Recount a CONFIRMED reservation from one pickup photo
       description: |
         Muse Spark counts the items of the reserved category in the photo, SAM 3.1 segments each counted item from
-        Spark's boxes, and the server writes a `handover_log` row. The count matches only if it equals the reserved
-        quantity and SAM returned a mask above the configured confidence threshold for every box.
+        Spark's boxes, and the server writes a `handover_log` row. The row is written only after both calls
+        completed; if either fails, the response is 503 AI_UNAVAILABLE, nothing is written and the reservation is
+        unchanged. The count matches only if it equals the reserved quantity and SAM segmented every box (see the
+        photo counting convention above); a completed SAM call that segments fewer boxes, or none, is MISMATCH.
         - Count matches: the reservation becomes HANDED_OVER with `handedOverQty` = quantity,
           the log row gets `accepted_qty` at once, and the reuse is recorded. No `resolveHandover` call follows.
         - Otherwise: the result is MISMATCH and the reservation stays CONFIRMED. The person either retakes the photo
@@ -554,8 +565,9 @@ paths:
       summary: A person settles a count mismatch and completes the handover
       description: |
         Only after a photo count: the reservation must be CONFIRMED and its newest `handover_log` row must be
-        MISMATCH, otherwise 409 INVALID_TRANSITION. A handover can never complete without a photo recount with SAM 3.1
-        segmentation.
+        MISMATCH, otherwise 409 INVALID_TRANSITION. A handover can never complete without a photo recount whose
+        Muse Spark and SAM 3.1 calls both completed; that `handover_log` row is the evidence. A MISMATCH caused by
+        SAM segmenting fewer boxes than Spark counted (even none) may be settled here like any other mismatch.
         `acceptedQty` greater than the reserved quantity fails with 400 INVALID_INPUT.
 
         In one transaction: the newest MISMATCH log row gets `accepted_qty`, the reservation becomes HANDED_OVER
@@ -897,8 +909,8 @@ components:
         needsReview:
           type: boolean
           description: |
-            True when confidence is below the configured threshold, the category is UNKNOWN, SAM 3.1 could not segment
-            one of the boxes, or an optional SAM 3.1 count disagrees with `count`
+            True when confidence is below the configured threshold, the category is UNKNOWN, SAM 3.1 did not segment
+            one of the boxes (or the SAM call failed), or an optional SAM 3.1 count disagrees with `count`
 
     ConfirmIntakeRequest:
       type: object
@@ -1291,6 +1303,7 @@ components:
           description: Muse Spark count of the reserved category in the photo
         boxes:
           type: array
+          description: One box per counted item. SAM 3.1's box when it segmented the item, else Spark's
           items:
             $ref: '#/components/schemas/BoundingBox'
 
