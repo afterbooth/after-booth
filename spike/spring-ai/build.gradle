@@ -1,0 +1,33 @@
+// Throwaway check (#2): does Spring AI 2.0.1 talk to Muse Spark, and does a plain RestClient? Same versions as backend/.
+plugins {
+	id 'java'
+	id 'org.springframework.boot' version '4.1.2'
+	id 'io.spring.dependency-management' version '1.1.7'
+}
+
+java {
+	toolchain {
+		languageVersion = JavaLanguageVersion.of(21)
+	}
+}
+
+repositories {
+	mavenCentral()
+}
+
+dependencies {
+	implementation 'org.springframework.boot:spring-boot-starter'
+	implementation 'org.springframework.ai:spring-ai-starter-model-openai'
+	implementation 'org.springframework:spring-web'
+}
+
+dependencyManagement {
+	imports {
+		mavenBom "org.springframework.ai:spring-ai-bom:2.0.1"
+	}
+}
+
+tasks.named('bootRun') {
+	// Relative sample paths in application.properties resolve against spike/spring-ai
+	workingDir = projectDir
+}
