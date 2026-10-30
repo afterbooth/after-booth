@@ -31,7 +31,7 @@ erDiagram
         bigint id PK
         bigint event_id FK
         text status "PROCESSING|READY|FAILED|CONFIRMED"
-        text stage "SEGMENT|ESTIMATE, nullable"
+        text stage "ESTIMATE|SEGMENT (runs in that order), nullable"
         text failure_message "nullable"
         timestamptz created_at
     }
@@ -101,7 +101,7 @@ erDiagram
         bigint id PK
         bigint reservation_id FK
         int expected_qty
-        int counted_qty "SAM 3.1 count, always present"
+        int counted_qty "Spark count, SAM-segmented (D-032), always present"
         int accepted_qty "set at submit on a match, or by resolve on the newest MISMATCH row"
         text status "COMPLETED|MISMATCH"
         jsonb boxes
@@ -126,7 +126,7 @@ erDiagram
 | A reservation's status changes only along the table in `ReservationStatus` (contract) | `Reservation` entity methods + a conditional `UPDATE ... WHERE status = :expected` so confirm and expiry cannot both win |
 | Each request's active quantity ≤ `pickup_request.quantity` | `SELECT ... FROM pickup_request WHERE id = :id FOR UPDATE` first, then sum active reservations and insert, all in one transaction. Both `holdItem` and the agent's `holdQuantity` take this lock, so concurrent holds on different items for one request are serialized |
 | One allocation run per request while it has an active reservation | Checked inside the same `pickup_request` row lock (REQUEST_ALREADY_HELD), so a concurrent second run for the same request gets 409 |
-| A handover completes only after a photo count | `resolveHandover` requires the newest `handover_log` row for the reservation to be MISMATCH; `counted_qty` is NOT NULL |
+| A handover completes only after a photo count with SAM 3.1 segmentation | `resolveHandover` requires the newest `handover_log` row for the reservation to be MISMATCH; `counted_qty` is NOT NULL |
 | Same Idempotency-Key never runs twice | `idempotency_record` row inserted first (`IN_PROGRESS`), response stored on `DONE` |
 
 ## Notes

@@ -16,6 +16,7 @@ The unit of work is a GitHub issue. Owners: **DY** = namdongyeob, **WJ** = WookJ
 - [x] #25 One rulebook: `AGENTS.md` for every agent, `CLAUDE.md` removed (DY)
 - [x] #2 Spike: model list, Spark text/image/function calling, SAM 3.1, Transcribe, cost → spike/REPORT.md (DY, key A, $0.44)
 - [x] **G0 STOP** — report the REPORT summary and the decisions for humans (all five accepted: D-029–D-033)
+- [x] #28 SPEC, contract 0.2.0 and ERD follow the G0 pipeline (DY)
 
 ## Phase 1: Features (target 11/1 night KST)
 
