@@ -125,7 +125,10 @@ class IntakeIntegrationTest {
     assertThat(service.get(first.id()).status()).isEqualTo(IntakeStatus.READY);
     assertThat(create(key, eventId, photo, "image/png")).isEqualTo(first);
     verify(executor, times(1)).execute(any(Runnable.class));
-    assertThat(create(key, eventId + 10000, photo, "image/jpeg")).isEqualTo(first);
+    assertThatThrownBy(() -> create(key, eventId + 10000, photo, "image/png"))
+        .isInstanceOf(BusinessException.class)
+        .extracting(e -> ((BusinessException) e).errorCode())
+        .isEqualTo(ErrorCode.IDEMPOTENCY_CONFLICT);
     assertThatThrownBy(() -> create(key, eventId, new byte[] {1}, "image/png"))
         .isInstanceOf(BusinessException.class)
         .extracting(e -> ((BusinessException) e).errorCode())

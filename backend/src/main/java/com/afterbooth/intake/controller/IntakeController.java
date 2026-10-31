@@ -9,6 +9,10 @@ import com.afterbooth.intake.service.IntakeService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Validator;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.HexFormat;
 import java.util.UUID;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -52,9 +56,19 @@ class IntakeController {
         key,
         http.getMethod(),
         http.getRequestURI(),
-        bytes,
+        fingerprintBody(eventId, bytes),
         202,
         () -> service.create(eventId, bytes, photo.getContentType()));
+  }
+
+  private static byte[] fingerprintBody(Long eventId, byte[] photo) {
+    try {
+      String photoHash =
+          HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(photo));
+      return ("eventId=" + eventId + "\nphoto=" + photoHash).getBytes(StandardCharsets.UTF_8);
+    } catch (NoSuchAlgorithmException impossible) {
+      throw new IllegalStateException(impossible);
+    }
   }
 
   @GetMapping("/{draftId}")

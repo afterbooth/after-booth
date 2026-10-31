@@ -84,7 +84,15 @@ class IntakeControllerTest {
         .andExpect(jsonPath("$.failureMessage").doesNotExist())
         .andExpect(jsonPath("$.createdAt").value("2026-10-31T12:00:00+09:00"));
     verify(idempotency)
-        .execute(any(), eq("POST"), eq("/api/intake/drafts"), eq(new byte[] {1}), eq(202), any());
+        .execute(
+            any(),
+            eq("POST"),
+            eq("/api/intake/drafts"),
+            eq(
+                ("eventId=1\nphoto=4bf5122f344554c53bde2ebb8cd2b7e3d1600ad631c385a5d7cce23c7785459a")
+                    .getBytes(java.nio.charset.StandardCharsets.UTF_8)),
+            eq(202),
+            any());
   }
 
   @Test
