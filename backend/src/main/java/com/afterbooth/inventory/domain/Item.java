@@ -173,6 +173,10 @@ public class Item {
     return conditionsTranscript;
   }
 
+  public VehicleFitResult vehicleFit(VehicleType vehicle, Dimensions cargo) {
+    return VehicleFitResult.evaluate(this, vehicle, cargo);
+  }
+
   public boolean isPickupClosed(Instant now) {
     return !now.isBefore(pickupDeadline);
   }
