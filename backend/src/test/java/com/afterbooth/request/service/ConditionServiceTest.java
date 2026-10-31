@@ -1,0 +1,189 @@
+package com.afterbooth.request.service;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.*;
+
+import com.afterbooth.ai.*;
+import com.afterbooth.inventory.domain.ItemCategory;
+import com.afterbooth.inventory.domain.VehicleType;
+import com.afterbooth.request.domain.ConditionContext;
+import com.afterbooth.request.domain.RequestFailure;
+import com.afterbooth.request.dto.ConditionInterpretation;
+import com.afterbooth.request.repository.RequestReferences;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+import java.nio.charset.StandardCharsets;
+import java.time.Clock;
+import java.time.Instant;
+import java.time.ZoneOffset;
+import java.util.List;
+import java.util.Optional;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
+import org.mockito.ArgumentCaptor;
+
+class ConditionServiceTest {
+  private final AiGateway gateway = mock(AiGateway.class);
+  private final RequestReferences references = mock(RequestReferences.class);
+  private final ConditionService service =
+      new ConditionService(
+          gateway,
+          references,
+          Clock.fixed(Instant.parse("2026-10-31T16:00:00Z"), ZoneOffset.UTC),
+          "minimal");
+
+  static ChatResponse answer(String json) {
+    return new ChatResponse(json, List.of(), "stop", null);
+  }
+
+  @Test
+  void interpretsTextAndOnlyReportsRequiredMissingFields() {
+    when(gateway.chat(any())).thenReturn(answer("{\"purpose\":\"주말 행사\"}"));
+    ConditionInterpretation result =
+        service.interpret(ConditionContext.RECEIVER, null, null, null, "주말 행사");
+    assertThat(result.transcript()).isEqualTo("주말 행사");
+    assertThat(result.conditions().quantity()).isNull();
+    assertThat(result.missingFields()).containsExactly("category", "vehicleType");
+    verify(gateway, never()).transcribe(any());
+  }
+
+  @Test
+  void transcribesAudioBeforeStructuring() {
+    byte[] wav = wav();
+    when(gateway.transcribe(wav)).thenReturn(new Transcription("주말 행사용 진열대 필요하고 승용차만 있어요", 1000));
+    when(gateway.chat(any()))
+        .thenReturn(
+            answer(
+                "{\"category\":\"DISPLAY_RACK\",\"vehicleType\":\"SEDAN\",\"purpose\":\"주말 행사 진열용\"}"));
+    ConditionInterpretation result =
+        service.interpret(ConditionContext.RECEIVER, null, wav, "audio/wav", null);
+    assertThat(result.conditions().category()).isEqualTo(ItemCategory.DISPLAY_RACK);
+    assertThat(result.conditions().vehicleType()).isEqualTo(VehicleType.SEDAN);
+    assertThat(result.conditions().purpose()).isNotBlank();
+    assertThat(result.missingFields()).isEmpty();
+    var order = inOrder(gateway);
+    order.verify(gateway).transcribe(wav);
+    order.verify(gateway).chat(any());
+  }
+
+  @ParameterizedTest
+  @ValueSource(
+      strings = {
+        "",
+        "{",
+        "[]",
+        "{\"quantity\":0}",
+        "{\"quantity\":1.5}",
+        "{\"category\":\"UNKNOWN\"}",
+        "{\"vehicleType\":\"BIKE\"}",
+        "{\"pickupDeadline\":\"tonight\"}",
+        "{\"purpose\":null}",
+        "{\"organizationId\":1}"
+      })
+  void reasksOnceForInvalidOutputThenReturnsClearError(String invalid) {
+    when(gateway.chat(any())).thenReturn(answer(invalid));
+    assertThatThrownBy(() -> service.interpret(ConditionContext.RECEIVER, null, null, null, "조건"))
+        .isInstanceOfSatisfying(
+            RequestFailure.class, error -> assertThat(error.code()).isEqualTo("AI_UNAVAILABLE"));
+    verify(gateway, times(2)).chat(any());
+  }
+
+  @Test
+  void acceptsCorrectedOutputOnSecondAttempt() {
+    when(gateway.chat(any())).thenReturn(answer("{\"quantity\":0}"), answer("{\"quantity\":2}"));
+    assertThat(
+            service
+                .interpret(ConditionContext.RECEIVER, null, null, null, "두 개")
+                .conditions()
+                .quantity())
+        .isEqualTo(2);
+    ArgumentCaptor<ChatRequest> calls = ArgumentCaptor.forClass(ChatRequest.class);
+    verify(gateway, times(2)).chat(calls.capture());
+    assertThat(calls.getAllValues().get(1).messages()).hasSize(4);
+    assertThat(calls.getValue().responseSchema().name()).isEqualTo("pickup_conditions");
+  }
+
+  @Test
+  void usesSeoulCurrentDateAndNormalizesDeadlineOffset() {
+    when(gateway.chat(any())).thenReturn(answer("{\"pickupDeadline\":\"2026-11-01T11:00:00Z\"}"));
+    assertThat(
+            service
+                .interpret(ConditionContext.RECEIVER, null, null, null, "오늘 저녁 8시")
+                .conditions()
+                .pickupDeadline()
+                .toString())
+        .isEqualTo("2026-11-01T20:00+09:00");
+    ArgumentCaptor<ChatRequest> calls = ArgumentCaptor.forClass(ChatRequest.class);
+    verify(gateway).chat(calls.capture());
+    assertThat(((ChatRequest.UserMessage) calls.getValue().messages().get(1)).text())
+        .contains("\"referenceDate\":\"2026-11-01\"");
+  }
+
+  @Test
+  void giverUsesEventDateRatherThanCurrentDate() {
+    when(references.eventDeadline(3L))
+        .thenReturn(Optional.of(Instant.parse("2026-11-05T11:00:00Z")));
+    when(gateway.chat(any())).thenReturn(answer("{}"));
+    assertThat(service.interpret(ConditionContext.GIVER, 3L, null, null, "오늘 저녁").missingFields())
+        .isEmpty();
+    ArgumentCaptor<ChatRequest> calls = ArgumentCaptor.forClass(ChatRequest.class);
+    verify(gateway).chat(calls.capture());
+    assertThat(((ChatRequest.UserMessage) calls.getValue().messages().get(1)).text())
+        .contains("\"referenceDate\":\"2026-11-05\"");
+  }
+
+  @Test
+  void rejectsMissingGiverEventBeforeCallingAi() {
+    assertThatThrownBy(() -> service.interpret(ConditionContext.GIVER, null, null, null, "오늘"))
+        .isInstanceOf(RequestFailure.class);
+    verifyNoInteractions(gateway);
+  }
+
+  @Test
+  void rejectsUnknownGiverEventAsInvalidInput() {
+    when(references.eventDeadline(99L)).thenReturn(Optional.empty());
+    assertThatThrownBy(() -> service.interpret(ConditionContext.GIVER, 99L, null, null, "오늘"))
+        .isInstanceOfSatisfying(
+            RequestFailure.class, error -> assertThat(error.status()).isEqualTo(400));
+    verifyNoInteractions(gateway);
+  }
+
+  @Test
+  void rejectsBothNeitherBlankAndTooLongInputBeforeAi() {
+    assertThatThrownBy(
+            () -> service.interpret(ConditionContext.RECEIVER, null, wav(), "audio/wav", "text"))
+        .isInstanceOf(RequestFailure.class);
+    assertThatThrownBy(() -> service.interpret(ConditionContext.RECEIVER, null, null, null, null))
+        .isInstanceOf(RequestFailure.class);
+    assertThatThrownBy(() -> service.interpret(ConditionContext.RECEIVER, null, null, null, " "))
+        .isInstanceOf(RequestFailure.class);
+    assertThatThrownBy(
+            () -> service.interpret(ConditionContext.RECEIVER, null, null, null, "x".repeat(501)))
+        .isInstanceOf(RequestFailure.class);
+    verifyNoInteractions(gateway);
+  }
+
+  @Test
+  void gatewayFailureDoesNotRetryAndMapsToUnavailable() {
+    when(gateway.chat(any())).thenThrow(new AiCallException(Capability.SPARK, "timeout"));
+    assertThatThrownBy(() -> service.interpret(ConditionContext.RECEIVER, null, null, null, "진열대"))
+        .isInstanceOfSatisfying(
+            RequestFailure.class, error -> assertThat(error.status()).isEqualTo(503));
+    verify(gateway).chat(any());
+  }
+
+  private static byte[] wav() {
+    ByteBuffer out = ByteBuffer.allocate(46).order(ByteOrder.LITTLE_ENDIAN);
+    out.put("RIFF".getBytes(StandardCharsets.US_ASCII)).putInt(38);
+    out.put("WAVEfmt ".getBytes(StandardCharsets.US_ASCII))
+        .putInt(16)
+        .putShort((short) 1)
+        .putShort((short) 1);
+    out.putInt(16000).putInt(32000).putShort((short) 2).putShort((short) 16);
+    out.put("data".getBytes(StandardCharsets.US_ASCII)).putInt(2).putShort((short) 0);
+    return out.array();
+  }
+}
