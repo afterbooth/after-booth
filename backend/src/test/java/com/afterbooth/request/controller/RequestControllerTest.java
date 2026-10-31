@@ -6,6 +6,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 import com.afterbooth.request.domain.ConditionContext;
+import com.afterbooth.request.domain.ConditionOutput;
 import com.afterbooth.request.domain.RequestFailure;
 import com.afterbooth.request.dto.ConditionInterpretation;
 import com.afterbooth.request.dto.Conditions;
@@ -13,6 +14,8 @@ import com.afterbooth.request.service.ConditionService;
 import com.afterbooth.request.service.PickupRequestService;
 import java.util.List;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.mock.web.MockMultipartFile;
@@ -90,5 +93,27 @@ class RequestControllerTest {
             .toBytes();
     org.assertj.core.api.Assertions.assertThat(fileLimit).isGreaterThanOrEqualTo(1920044L);
     org.assertj.core.api.Assertions.assertThat(requestLimit).isGreaterThan(fileLimit);
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"", " ", "  \\t\\n"})
+  void responseOmitsBlankPurpose(String purpose) throws Exception {
+    when(conditions.interpret(any(), any(), any(), any(), any()))
+        .thenReturn(
+            new ConditionInterpretation(
+                ConditionContext.RECEIVER,
+                "수납함 필요해요",
+                ConditionOutput.parse("{\"purpose\":\"" + purpose + "\"}"),
+                List.of("category", "vehicleType")));
+    mvc.perform(
+            multipart("/api/conditions/interpret")
+                .param("context", "RECEIVER")
+                .param("text", "수납함 필요해요"))
+        .andExpect(status().isOk())
+        .andExpect(
+            content()
+                .json(
+                    "{\"context\":\"RECEIVER\",\"transcript\":\"수납함 필요해요\",\"conditions\":{},\"missingFields\":[\"category\",\"vehicleType\"]}",
+                    org.springframework.test.json.JsonCompareMode.STRICT));
   }
 }

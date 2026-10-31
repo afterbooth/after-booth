@@ -75,13 +75,14 @@ class ConditionServiceTest {
         "",
         "{",
         "[]",
-        "{\"quantity\":0}",
-        "{\"quantity\":1.5}",
-        "{\"category\":\"UNKNOWN\"}",
-        "{\"vehicleType\":\"BIKE\"}",
-        "{\"pickupDeadline\":\"tonight\"}",
+        "{}",
+        "{\"quantity\":0,\"purpose\":\"\"}",
+        "{\"quantity\":1.5,\"purpose\":\"\"}",
+        "{\"category\":\"UNKNOWN\",\"purpose\":\"\"}",
+        "{\"vehicleType\":\"BIKE\",\"purpose\":\"\"}",
+        "{\"pickupDeadline\":\"tonight\",\"purpose\":\"\"}",
         "{\"purpose\":null}",
-        "{\"organizationId\":1}"
+        "{\"organizationId\":1,\"purpose\":\"\"}"
       })
   void reasksOnceForInvalidOutputThenReturnsClearError(String invalid) {
     when(gateway.chat(any())).thenReturn(answer(invalid));
@@ -93,7 +94,10 @@ class ConditionServiceTest {
 
   @Test
   void acceptsCorrectedOutputOnSecondAttempt() {
-    when(gateway.chat(any())).thenReturn(answer("{\"quantity\":0}"), answer("{\"quantity\":2}"));
+    when(gateway.chat(any()))
+        .thenReturn(
+            answer("{\"quantity\":0,\"purpose\":\"\"}"),
+            answer("{\"quantity\":2,\"purpose\":\"\"}"));
     assertThat(
             service
                 .interpret(ConditionContext.RECEIVER, null, null, null, "두 개")
@@ -106,9 +110,33 @@ class ConditionServiceTest {
     assertThat(calls.getValue().responseSchema().name()).isEqualTo("pickup_conditions");
   }
 
+  @ParameterizedTest
+  @ValueSource(strings = {"", " ", "  \\t\\n"})
+  void acceptsBlankPurposeAsAbsentWithoutReasking(String purpose) {
+    when(gateway.chat(any())).thenReturn(answer("{\"purpose\":\"" + purpose + "\"}"));
+    assertThat(
+            service
+                .interpret(ConditionContext.RECEIVER, null, null, null, "수납함 필요해요")
+                .conditions()
+                .purpose())
+        .isNull();
+    verify(gateway).chat(any());
+  }
+
+  @Test
+  void reasksOnceWhenPurposeKeyIsMissing() {
+    when(gateway.chat(any()))
+        .thenReturn(answer("{\"quantity\":3}"), answer("{\"quantity\":3,\"purpose\":\"주말 행사\"}"));
+    var result = service.interpret(ConditionContext.RECEIVER, null, null, null, "주말 행사에 세 개");
+    assertThat(result.conditions().quantity()).isEqualTo(3);
+    assertThat(result.conditions().purpose()).isEqualTo("주말 행사");
+    verify(gateway, times(2)).chat(any());
+  }
+
   @Test
   void usesSeoulCurrentDateAndNormalizesDeadlineOffset() {
-    when(gateway.chat(any())).thenReturn(answer("{\"pickupDeadline\":\"2026-11-01T11:00:00Z\"}"));
+    when(gateway.chat(any()))
+        .thenReturn(answer("{\"pickupDeadline\":\"2026-11-01T11:00:00Z\",\"purpose\":\"\"}"));
     assertThat(
             service
                 .interpret(ConditionContext.RECEIVER, null, null, null, "오늘 저녁 8시")
@@ -126,7 +154,7 @@ class ConditionServiceTest {
   void giverUsesEventDateRatherThanCurrentDate() {
     when(references.eventDeadline(3L))
         .thenReturn(Optional.of(Instant.parse("2026-11-05T11:00:00Z")));
-    when(gateway.chat(any())).thenReturn(answer("{}"));
+    when(gateway.chat(any())).thenReturn(answer("{\"purpose\":\"\"}"));
     assertThat(service.interpret(ConditionContext.GIVER, 3L, null, null, "오늘 저녁").missingFields())
         .isEmpty();
     ArgumentCaptor<ChatRequest> calls = ArgumentCaptor.forClass(ChatRequest.class);

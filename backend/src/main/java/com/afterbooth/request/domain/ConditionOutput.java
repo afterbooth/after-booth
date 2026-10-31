@@ -25,6 +25,9 @@ public final class ConditionOutput {
       if (!FIELDS.contains(name) || root.get(name).isNull())
         throw new IllegalArgumentException("Unexpected field");
     }
+    JsonNode purpose = root.get("purpose");
+    if (purpose == null || !purpose.isString())
+      throw new IllegalArgumentException("Missing or invalid purpose");
     String category = text(root, "category");
     String vehicle = text(root, "vehicleType");
     String deadline = text(root, "pickupDeadline");
@@ -44,7 +47,7 @@ public final class ConditionOutput {
             : OffsetDateTime.parse(deadline)
                 .atZoneSameInstant(ZoneId.of("Asia/Seoul"))
                 .toOffsetDateTime(),
-        text(root, "purpose"));
+        purpose.stringValue().isBlank() ? null : purpose.stringValue());
   }
 
   private static String text(JsonNode root, String name) {

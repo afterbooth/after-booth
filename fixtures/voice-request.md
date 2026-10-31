@@ -15,17 +15,9 @@ This reuses the existing opt-in `recordSmoke` Gradle property. It can make two S
 calls if the first structured response fails server validation. Inspect the saved
 files and log the actual estimated spend in `docs/BUDGET.md`, then run the secret scan.
 
-After recording, enable the pending replay assertion in PowerShell:
-
-```powershell
-$env:AFTERBOOTH_REQUEST_REPLAY = 'true'
-backend/gradlew.bat -p backend test --tests com.afterbooth.request.service.ConditionInterpretationReplayTest --rerun
-Remove-Item Env:AFTERBOOTH_REQUEST_REPLAY
-```
-
-Exact replay test: `com.afterbooth.request.service.ConditionInterpretationReplayTest.replaysReceiverRacksSedan`.
-It asserts DISPLAY_RACK, SEDAN, a nonempty purpose, the transcript and no missing
-required fields. Default builds skip this test until the recorded fixtures exist.
+The replay test `com.afterbooth.request.service.ConditionInterpretationReplayTest.replaysReceiverRacksSedan`
+runs in every default build. It asserts DISPLAY_RACK, SEDAN, a nonempty purpose, the transcript and
+no missing required fields. Re-record whenever the prompt, schema, model ID or WAV changes.
 
 Prompt and schema: `backend/src/main/java/com/afterbooth/request/domain/ConditionPrompt.java`
 (`SYSTEM` and `SCHEMA`). Changing these constants, the configured model IDs, fixed
