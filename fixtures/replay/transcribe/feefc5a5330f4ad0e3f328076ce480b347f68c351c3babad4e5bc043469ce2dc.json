@@ -1,0 +1,29 @@
+{
+  "request" : {
+    "method" : "POST",
+    "path" : "/v1/asr/transcribe",
+    "body" : {
+      "request" : {
+        "model" : "muse-voice-transcribe-1.0",
+        "audioEncoding" : "WAV",
+        "mode" : "PUSH_TO_TALK",
+        "languageBias" : [
+          "Korean"
+        ]
+      },
+      "audio" : {
+        "sha256" : "8f7c478fdf769fe1760e2b196867e39051e8eeea7e700c8a779d003caad9ea29",
+        "bytes" : 152206
+      }
+    }
+  },
+  "response" : {
+    "status" : 200,
+    "body" : {
+      "sessionId" : "voyager/transcribe/A233ADFFFB8A4941AD91577E67CB8E30",
+      "transcript" : "오늘 저녁 저녁 여덟 시까지 철수해야 하고 승합차가 필요해요.",
+      "audioDurationMs" : 4800,
+      "turns" : [ ]
+    }
+  }
+}

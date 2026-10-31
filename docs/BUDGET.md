@@ -52,3 +52,4 @@ Add one row for every live/record session. STOP (G$) each time the cumulative to
 | 2026-10-31 | A | #2 spike: SAM alternative phrases, SAM box prompts from Spark boxes | 40 | $0.10 | $0.37 |
 | 2026-10-31 | A | #2 spike: Spring AI and RestClient (text, tools, image) | 8 | $0.02 | $0.40 |
 | 2026-10-31 | A | #2 spike: Spark image and structuring at `reasoning_effort: minimal` | 13 | $0.04 | $0.44 |
+| 2026-10-31 | A | #4 AiGateway record smoke: Spark text (`minimal`, 117 tokens), SAM 3.1 one box, Transcribe ×2 (first 400 "Malformed multipart body", fixed, re-recorded) | 4 | $0.004 | $0.444 |

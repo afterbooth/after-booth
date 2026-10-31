@@ -84,13 +84,16 @@ class ArchitectureTest {
   }
 
   @Test
-  void only_ai_package_uses_spring_ai() {
+  void only_ai_package_uses_an_http_client() {
     noClasses()
         .that()
         .resideOutsideOfPackage("com.afterbooth.ai..")
         .should()
         .dependOnClassesThat()
-        .resideInAPackage("org.springframework.ai..")
+        .resideInAnyPackage(
+            "org.springframework.web.client..",
+            "org.springframework.http.client..",
+            "java.net.http..")
         .check(CLASSES);
   }
 

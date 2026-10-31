@@ -18,11 +18,6 @@ repositories {
 	mavenCentral()
 }
 
-ext {
-	// Only Spring AI 2.x supports Boot 4.x (docs/DECISIONS.md D-001)
-	set('springAiVersion', "2.0.1")
-}
-
 dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-actuator'
 	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
@@ -30,8 +25,6 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-validation'
 	implementation 'org.springframework.boot:spring-boot-starter-webmvc'
 	implementation 'org.flywaydb:flyway-database-postgresql'
-	// The Meta Model API is reached through its OpenAI-compatible endpoint. Base URL and model IDs are configuration
-	implementation 'org.springframework.ai:spring-ai-starter-model-openai'
 	developmentOnly 'org.springframework.boot:spring-boot-docker-compose'
 	runtimeOnly 'org.postgresql:postgresql'
 	testImplementation 'org.springframework.boot:spring-boot-starter-actuator-test'
@@ -47,12 +40,6 @@ dependencies {
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
-dependencyManagement {
-	imports {
-		mavenBom "org.springframework.ai:spring-ai-bom:${springAiVersion}"
-	}
-}
-
 spotless {
 	java {
 		googleJavaFormat()
@@ -64,4 +51,8 @@ tasks.named('test') {
 	useJUnitPlatform()
 	// Automated tests never call the Meta API (AGENTS.md hard rule 4)
 	environment 'AI_MODE', 'replay'
+	// Opt-in for AiGatewayRecordSmokeTest, which makes real (paid) calls; a human runs it with -PrecordSmoke
+	if (providers.gradleProperty('recordSmoke').isPresent()) {
+		systemProperty 'afterbooth.ai.record-smoke', 'true'
+	}
 }

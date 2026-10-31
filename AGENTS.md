@@ -87,7 +87,7 @@ Run fully automated, but stop and report at these points only.
 
 ## Architecture
 
-- `backend/`: Java 21, Spring Boot 4.1, Spring AI 2.0 (OpenAI starter with base-url pointed at the Meta Model API), PostgreSQL 17, Flyway, Testcontainers
+- `backend/`: Java 21, Spring Boot 4.1, `RestClient` to the Meta Model API behind `AiGateway` (D-037), PostgreSQL 17, Flyway, Testcontainers
   - Packages: `com.afterbooth.<domain>` (inventory, intake, request, allocation, handover, stats), shared code in `com.afterbooth.global`, AI in `com.afterbooth.ai`
   - Tables follow `docs/ERD.md`. Schema changes only through Flyway, versioned by timestamp (`V202610311200__create_core_tables.sql`) so parallel branches never collide. `ddl-auto=validate`
 - `frontend/`: React 19 + Vite + TypeScript + Tailwind v4, Korean UI, mobile first. orval generates the API client and MSW mocks from the contract (`src/api/generated/`, not committed). Use the `frontend-design` skill for UI work.
