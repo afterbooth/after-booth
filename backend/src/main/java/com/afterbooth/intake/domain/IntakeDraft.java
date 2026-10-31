@@ -1,5 +1,7 @@
 package com.afterbooth.intake.domain;
 
+import com.afterbooth.global.error.BusinessException;
+import com.afterbooth.global.error.ErrorCode;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -9,6 +11,8 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.time.Instant;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Objects;
 
 @Entity
@@ -48,6 +52,38 @@ public class IntakeDraft {
 
   public static IntakeDraft start(Long eventId, Instant createdAt) {
     return new IntakeDraft(eventId, createdAt);
+  }
+
+  public void beginSegmentation() {
+    requireProcessing();
+    if (stage != IntakeStage.ESTIMATE) throw new BusinessException(ErrorCode.DRAFT_NOT_READY);
+    stage = IntakeStage.SEGMENT;
+  }
+
+  public void ready() {
+    requireProcessing();
+    status = IntakeStatus.READY;
+    stage = null;
+  }
+
+  public void fail(String message) {
+    requireProcessing();
+    failureMessage = Objects.requireNonNull(message);
+    status = IntakeStatus.FAILED;
+  }
+
+  public void confirm(List<Long> selectedIds, List<Long> ownIds) {
+    if (status == IntakeStatus.CONFIRMED)
+      throw new BusinessException(ErrorCode.DRAFT_ALREADY_CONFIRMED);
+    if (status != IntakeStatus.READY) throw new BusinessException(ErrorCode.DRAFT_NOT_READY);
+    if (selectedIds.isEmpty()
+        || selectedIds.size() != new HashSet<>(selectedIds).size()
+        || !ownIds.containsAll(selectedIds)) throw new BusinessException(ErrorCode.INVALID_INPUT);
+    status = IntakeStatus.CONFIRMED;
+  }
+
+  private void requireProcessing() {
+    if (status != IntakeStatus.PROCESSING) throw new BusinessException(ErrorCode.DRAFT_NOT_READY);
   }
 
   public Long id() {

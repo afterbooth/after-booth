@@ -53,6 +53,11 @@ public class Event {
     throw new BusinessException(ErrorCode.INVALID_INPUT);
   }
 
+  public Instant intakePickupDeadline(Instant requested) {
+    if (requested != null && requested.isAfter(teardownDeadline)) invalid();
+    return requested == null ? teardownDeadline : requested;
+  }
+
   public Long id() {
     return id;
   }
