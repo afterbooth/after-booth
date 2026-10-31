@@ -29,11 +29,13 @@ final class GatewaySmoke {
 
   private GatewaySmoke() {}
 
-  static void callEachModelOnce(AiGateway gateway) {
+  static void callSpark(AiGateway gateway) {
     ChatResponse answer = gateway.chat(SPARK);
     assertThat(answer.content()).containsPattern("[가-힣]");
     assertThat(answer.finishReason()).isEqualTo("stop");
+  }
 
+  static void callSam(AiGateway gateway) {
     assertThat(gateway.segment(SAM))
         .singleElement()
         .satisfies(
@@ -42,7 +44,9 @@ final class GatewaySmoke {
               assertThat(segment.score()).isPositive();
               assertThat(segment.mask().data()).isNotBlank();
             });
+  }
 
+  static void callTranscribe(AiGateway gateway) {
     Transcription transcription = gateway.transcribe(WAV);
     assertThat(transcription.transcript()).isNotBlank();
     assertThat(transcription.audioDurationMs()).isPositive();

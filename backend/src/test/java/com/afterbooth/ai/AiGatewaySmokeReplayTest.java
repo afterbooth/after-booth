@@ -21,7 +21,10 @@ class AiGatewaySmokeReplayTest {
         .run(
             context -> {
               assertThat(context).hasNotFailed();
-              GatewaySmoke.callEachModelOnce(context.getBean(AiGateway.class));
+              AiGateway gateway = context.getBean(AiGateway.class);
+              GatewaySmoke.callSpark(gateway);
+              GatewaySmoke.callSam(gateway);
+              GatewaySmoke.callTranscribe(gateway);
             });
   }
 }

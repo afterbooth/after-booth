@@ -1,18 +1,16 @@
 package com.afterbooth.ai;
 
+import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.EnumMap;
 import java.util.Map;
+import java.util.UUID;
 import java.util.function.UnaryOperator;
-import org.springframework.core.io.ByteArrayResource;
-import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
-import org.springframework.util.LinkedMultiValueMap;
-import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 import tools.jackson.core.JacksonException;
@@ -29,7 +27,6 @@ import tools.jackson.databind.node.ObjectNode;
 class MetaExchange {
 
   private static final String METHOD = "POST";
-  private static final MediaType AUDIO_WAV = MediaType.parseMediaType("audio/wav");
   private static final int ERROR_BODY_LIMIT = 500;
 
   private final AiProperties properties;
@@ -51,7 +48,12 @@ class MetaExchange {
             request.contentType(MediaType.APPLICATION_JSON).body(json.writeValueAsBytes(body)));
   }
 
-  /** Multipart with a JSON {@code request} part and an {@code audio} WAV part. */
+  /**
+   * Multipart with a JSON {@code request} part and an {@code audio} WAV part, built by hand as one
+   * buffered body with a Content-Length. Spring's multipart writer streamed it chunked, with part
+   * Content-Length headers and {@code ;boundary=} without a space, and Transcribe answered "400
+   * Malformed multipart body"; this byte layout is the one the spike's working request used.
+   */
   JsonNode postAudio(Capability capability, ObjectNode requestPart, byte[] wav) {
     ObjectNode redacted = JsonNodeFactory.instance.objectNode();
     redacted.set("request", requestPart);
@@ -59,10 +61,12 @@ class MetaExchange {
     return exchange(
         capability,
         redacted,
-        request ->
-            request
-                .contentType(MediaType.MULTIPART_FORM_DATA)
-                .body(audioParts(json.writeValueAsBytes(requestPart), wav)));
+        request -> {
+          String boundary = "----afterbooth-" + UUID.randomUUID();
+          return request
+              .header(HttpHeaders.CONTENT_TYPE, "multipart/form-data; boundary=" + boundary)
+              .body(audioBody(boundary, json.writeValueAsBytes(requestPart), wav));
+        });
   }
 
   private JsonNode exchange(
@@ -121,26 +125,24 @@ class MetaExchange {
     return key == null || key.isBlank() ? message : message.replace(key, "<redacted>");
   }
 
-  private static MultiValueMap<String, HttpEntity<?>> audioParts(byte[] requestJson, byte[] wav) {
-    MultiValueMap<String, HttpEntity<?>> parts = new LinkedMultiValueMap<>();
-    parts.add("request", new HttpEntity<>(requestJson, contentType(MediaType.APPLICATION_JSON)));
-    parts.add(
-        "audio",
-        new HttpEntity<>(
-            new ByteArrayResource(wav) {
-              @Override
-              public String getFilename() {
-                return "audio.wav";
-              }
-            },
-            contentType(AUDIO_WAV)));
-    return parts;
-  }
-
-  private static HttpHeaders contentType(MediaType mediaType) {
-    HttpHeaders headers = new HttpHeaders();
-    headers.setContentType(mediaType);
-    return headers;
+  private static byte[] audioBody(String boundary, byte[] requestJson, byte[] wav) {
+    ByteArrayOutputStream body = new ByteArrayOutputStream(wav.length + 512);
+    body.writeBytes(
+        ("--"
+                + boundary
+                + "\r\nContent-Disposition: form-data; name=\"request\""
+                + "\r\nContent-Type: application/json\r\n\r\n")
+            .getBytes(StandardCharsets.UTF_8));
+    body.writeBytes(requestJson);
+    body.writeBytes(
+        ("\r\n--"
+                + boundary
+                + "\r\nContent-Disposition: form-data; name=\"audio\"; filename=\"audio.wav\""
+                + "\r\nContent-Type: audio/wav\r\n\r\n")
+            .getBytes(StandardCharsets.UTF_8));
+    body.writeBytes(wav);
+    body.writeBytes(("\r\n--" + boundary + "--\r\n").getBytes(StandardCharsets.UTF_8));
+    return body.toByteArray();
   }
 
   private static Map<Capability, RestClient> clients(AiProperties properties) {

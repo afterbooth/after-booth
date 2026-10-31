@@ -1,5 +1,6 @@
 package com.afterbooth.ai;
 
+import com.sun.net.httpserver.Headers;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
 import java.io.IOException;
@@ -14,11 +15,11 @@ import java.util.concurrent.CopyOnWriteArrayList;
 /** A local stand-in for the Meta API on 127.0.0.1 that records every request it receives. */
 final class StubMetaServer implements AutoCloseable {
 
-  record Received(
-      String method, String path, String authorization, String contentType, byte[] body) {
+  record Received(String method, String path, Headers headers, byte[] body) {
 
-    String bodyText() {
-      return new String(body, StandardCharsets.UTF_8);
+    /** The first value of a request header, or null when it was not sent. */
+    String header(String name) {
+      return headers.getFirst(name);
     }
   }
 
@@ -61,8 +62,7 @@ final class StubMetaServer implements AutoCloseable {
         new Received(
             exchange.getRequestMethod(),
             exchange.getRequestURI().getPath(),
-            exchange.getRequestHeaders().getFirst("Authorization"),
-            exchange.getRequestHeaders().getFirst("Content-Type"),
+            exchange.getRequestHeaders(),
             exchange.getRequestBody().readAllBytes()));
     byte[] body = response.getBytes(StandardCharsets.UTF_8);
     exchange.getResponseHeaders().set("Content-Type", "application/json");

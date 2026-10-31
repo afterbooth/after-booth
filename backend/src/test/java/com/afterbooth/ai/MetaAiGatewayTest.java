@@ -14,6 +14,8 @@ import java.nio.file.Path;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import tools.jackson.databind.JsonNode;
@@ -55,7 +57,7 @@ class MetaAiGatewayTest {
       ChatResponse response = gateway(AiMode.LIVE, meta.baseUrl(), fixtures, KEY).chat(request);
 
       JsonNode sent = JSON.readTree(meta.received().getFirst().body());
-      assertThat(meta.received().getFirst().contentType()).startsWith("application/json");
+      assertThat(meta.received().getFirst().header("Content-Type")).startsWith("application/json");
       assertThat(sent.path("model").stringValue()).isEqualTo("muse-spark-1.3");
       assertThat(sent.at("/messages/0/role").stringValue()).isEqualTo("system");
       assertThat(sent.at("/messages/1/content/0/text").stringValue()).isEqualTo("진열대 2개, 승용차");
@@ -228,19 +230,46 @@ class MetaAiGatewayTest {
           gateway(AiMode.LIVE, meta.baseUrl(), fixtures, KEY).transcribe(wav);
 
       StubMetaServer.Received sent = meta.received().getFirst();
-      String body = new String(sent.body(), StandardCharsets.ISO_8859_1);
       assertThat(sent.path()).isEqualTo("/v1/asr/transcribe");
-      assertThat(sent.contentType()).startsWith("multipart/form-data");
-      assertThat(body)
-          .contains("name=\"request\"")
-          .contains(
-              "{\"model\":\"muse-voice-transcribe-1.0\",\"audioEncoding\":\"WAV\","
-                  + "\"mode\":\"PUSH_TO_TALK\",\"languageBias\":[\"Korean\"]}")
-          .contains("name=\"audio\"; filename=\"audio.wav\"")
-          .contains("Content-Type: audio/wav")
-          .contains(new String(wav, StandardCharsets.ISO_8859_1));
       assertThat(transcription.transcript()).isEqualTo("오늘 저녁 여덟 시까지 철수해야 하고 승합차가 필요해요");
       assertThat(transcription.audioDurationMs()).isEqualTo(4800);
+    }
+  }
+
+  // Transcribe answered "400 Malformed multipart body" to a chunked body with part Content-Length
+  // headers; this is the byte layout of the spike's working request (spike/run.mjs buildMultipart)
+  @Test
+  void transcribeSendsOneBufferedMultipartBodyLaidOutLikeTheSpike() {
+    byte[] wav = sample("audio-giver-van-tonight.wav");
+    try (StubMetaServer meta = new StubMetaServer()) {
+      meta.respond(200, spikeResponse("transcribe/giver-van-tonight-1.json"));
+
+      gateway(AiMode.LIVE, meta.baseUrl(), fixtures, KEY).transcribe(wav);
+
+      StubMetaServer.Received sent = meta.received().getFirst();
+      assertThat(sent.header("Transfer-Encoding")).isNull();
+      assertThat(sent.header("Content-Length")).isEqualTo(String.valueOf(sent.body().length));
+      Matcher contentType =
+          Pattern.compile("multipart/form-data; boundary=(\\S+)")
+              .matcher(sent.header("Content-Type"));
+      assertThat(contentType.matches()).as(sent.header("Content-Type")).isTrue();
+      String boundary = contentType.group(1);
+      String expected =
+          "--"
+              + boundary
+              + "\r\nContent-Disposition: form-data; name=\"request\""
+              + "\r\nContent-Type: application/json\r\n\r\n"
+              + "{\"model\":\"muse-voice-transcribe-1.0\",\"audioEncoding\":\"WAV\","
+              + "\"mode\":\"PUSH_TO_TALK\",\"languageBias\":[\"Korean\"]}"
+              + "\r\n--"
+              + boundary
+              + "\r\nContent-Disposition: form-data; name=\"audio\"; filename=\"audio.wav\""
+              + "\r\nContent-Type: audio/wav\r\n\r\n"
+              + new String(wav, StandardCharsets.ISO_8859_1)
+              + "\r\n--"
+              + boundary
+              + "--\r\n";
+      assertThat(new String(sent.body(), StandardCharsets.ISO_8859_1)).isEqualTo(expected);
     }
   }
 

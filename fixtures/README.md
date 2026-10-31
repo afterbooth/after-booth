@@ -36,6 +36,8 @@ node --env-file=.env spike/with-env.mjs backend/gradlew.bat -p backend test --te
 node scripts/secret-scan.mjs fixtures/replay/spark/*.json fixtures/replay/sam/*.json fixtures/replay/transcribe/*.json
 ```
 
+There is one test method per model (`recordsSpark`, `recordsSam`, `recordsTranscribe`), so a single model can be re-recorded with `--tests com.afterbooth.ai.AiGatewayRecordSmokeTest.recordsTranscribe`.
+
 `AiGatewaySmokeReplayTest` then replays those three files on every test run, with no key and no network. It is skipped only while `fixtures/replay/` does not exist.
 
 The model IDs in `.env` must match the defaults in `application.properties` (D-027), because tests replay with the defaults and the model ID is part of the key.

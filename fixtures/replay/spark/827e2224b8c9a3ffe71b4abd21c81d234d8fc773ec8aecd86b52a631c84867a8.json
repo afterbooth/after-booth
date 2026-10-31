@@ -1,0 +1,48 @@
+{
+  "request" : {
+    "method" : "POST",
+    "path" : "/v1/chat/completions",
+    "body" : {
+      "model" : "muse-spark-1.3",
+      "messages" : [
+        {
+          "role" : "user",
+          "content" : "접이식 테이블이 무엇인지 한국어 한 문장으로 답해 주세요."
+        }
+      ],
+      "reasoning_effort" : "minimal"
+    }
+  },
+  "response" : {
+    "status" : 200,
+    "body" : {
+      "id" : "chatcmpl-01a190c8-e4cd-705e-aff2-6867e6512fb4",
+      "choices" : [
+        {
+          "finish_reason" : "stop",
+          "index" : 0,
+          "message" : {
+            "content" : "접이식 테이블은 사용하지 않을 때 접어서 보관하거나 쉽게 이동할 수 있도록 설계된 테이블입니다.",
+            "refusal" : null,
+            "role" : "assistant"
+          },
+          "logprobs" : null
+        }
+      ],
+      "created" : 1793430447,
+      "model" : "muse-spark-1.3",
+      "object" : "chat.completion",
+      "usage" : {
+        "completion_tokens" : 93,
+        "prompt_tokens" : 24,
+        "total_tokens" : 117,
+        "completion_tokens_details" : {
+          "reasoning_tokens" : 62
+        },
+        "prompt_tokens_details" : {
+          "cached_tokens" : 0
+        }
+      }
+    }
+  }
+}

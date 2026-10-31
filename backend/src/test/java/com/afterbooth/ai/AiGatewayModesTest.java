@@ -146,7 +146,10 @@ class AiGatewayModesTest {
               request -> {
                 assertThat(request.method()).isEqualTo("POST");
                 assertThat(request.path()).isEqualTo("/v1/chat/completions");
-                assertThat(request.authorization()).isEqualTo("Bearer " + KEY);
+                assertThat(request.header("Authorization")).isEqualTo("Bearer " + KEY);
+                assertThat(request.header("Transfer-Encoding")).isNull();
+                assertThat(request.header("Content-Length"))
+                    .isEqualTo(String.valueOf(request.body().length));
               });
       assertThat(fixtureFiles(fixtures)).isEmpty();
     }
