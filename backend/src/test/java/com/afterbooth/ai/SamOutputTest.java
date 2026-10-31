@@ -46,9 +46,17 @@ class SamOutputTest {
   @ValueSource(
       strings = {
         "<0f>1<|box;x1=1;y1=2;x2=3;y2=4;w=5;h=6;c=0.9|>",
-        "<0f>1<|box;x1=1;y1=2;x2=3;y2=4;w=5;h=6|><|mask;x=0;y=0;data=1,1,!|>"
+        "<0f>1<|box;x1=1;y1=2;x2=3;y2=4;w=5;h=6|><|mask;x=0;y=0;data=1,1,!|>",
+        "<0f>1<|box;x1=abc;y1=2;x2=3;y2=4;w=5;h=6;c=0.9|><|mask;x=0;y=0;c=0.9;data=1,1,!|>",
+        "<0f>1<|box;x1=1;y1=2;x2=3;y2=4;w=5;h=6;c=high|><|mask;x=0;y=0;c=0.9;data=1,1,!|>",
+        "<0f>1<|box;x1=1;y1=2;x2=3;y2=4;w=5;h=6;c=0.9|><|mask;x=0;y=one;c=0.9;data=1,1,!|>",
+        "<0f>99999999999<|box;x1=1;y1=2;x2=3;y2=4;w=5;h=6;c=0.9|><|mask;x=0;y=0;c=0.9;data=1,1,!|>",
+        "<0f>1<|box;x1=1;x1=2;y1=2;x2=3;y2=4;w=5;h=6;c=0.9|><|mask;x=0;y=0;c=0.9;data=1,1,!|>",
+        "<0f>1<|box;x1=1;y1=2;x2=3;y2=4;w=5;h=6;c=0.9|><|mask;x=0;x=0;y=0;c=0.9;data=1,1,!|>"
       })
-  void anObjectItCannotReadIsACallFailure(String text) {
-    assertThatThrownBy(() -> SamOutput.parse(text)).isInstanceOf(AiCallException.class);
+  void malformedOutputIsAlwaysASamCallFailure(String text) {
+    assertThatThrownBy(() -> SamOutput.parse(text))
+        .isExactlyInstanceOf(AiCallException.class)
+        .satisfies(e -> assertThat(((AiCallException) e).capability()).isEqualTo(Capability.SAM));
   }
 }

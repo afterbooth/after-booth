@@ -31,6 +31,7 @@ import tools.jackson.databind.node.ObjectNode;
 final class FixtureStore {
 
   private static final JsonNodeFactory NODES = JsonNodeFactory.instance;
+  private static final String IMAGE_URL = "image_url";
   private static final DefaultIndenter LF_INDENT = new DefaultIndenter("  ", "\n");
 
   private final Path replayRoot;
@@ -109,28 +110,53 @@ final class FixtureStore {
     }
   }
 
-  /** A copy of {@code node} with every base64 data URL replaced by its SHA-256 and byte size. */
+  /**
+   * A copy of {@code node} with every image payload replaced by its SHA-256 and byte size. Only
+   * base64 data URLs under an {@code image_url} property count, which is where the gateway puts the
+   * images it encodes (Spark {@code image_url.url}, SAM {@code image_url}). User text that merely
+   * looks like a data URL is part of the request and stays as it is.
+   */
   static JsonNode redact(JsonNode node) {
-    if (node.isString()
-        && node.stringValue().startsWith("data:")
-        && node.stringValue().contains(";base64,")) {
-      String url = node.stringValue();
-      int comma = url.indexOf(',');
-      ObjectNode redacted = digest(Base64.getDecoder().decode(url.substring(comma + 1)));
-      redacted.put("redactedDataUrl", url.substring(0, comma));
-      return redacted;
+    return redact(node, false);
+  }
+
+  private static JsonNode redact(JsonNode node, boolean underImageUrl) {
+    if (underImageUrl && node.isString()) {
+      return redactDataUrl(node);
     }
     if (node.isObject()) {
       ObjectNode copy = NODES.objectNode();
-      node.properties().forEach(e -> copy.set(e.getKey(), redact(e.getValue())));
+      node.properties()
+          .forEach(
+              e ->
+                  copy.set(
+                      e.getKey(),
+                      redact(e.getValue(), underImageUrl || e.getKey().equals(IMAGE_URL))));
       return copy;
     }
     if (node.isArray()) {
       ArrayNode copy = NODES.arrayNode();
-      node.forEach(element -> copy.add(redact(element)));
+      node.forEach(element -> copy.add(redact(element, underImageUrl)));
       return copy;
     }
     return node;
+  }
+
+  private static JsonNode redactDataUrl(JsonNode node) {
+    String url = node.stringValue();
+    int comma = url.indexOf(',');
+    if (!url.startsWith("data:") || comma < 0 || !url.substring(0, comma).endsWith(";base64")) {
+      return node;
+    }
+    byte[] payload;
+    try {
+      payload = Base64.getDecoder().decode(url.substring(comma + 1));
+    } catch (IllegalArgumentException notBase64) {
+      return node;
+    }
+    ObjectNode redacted = digest(payload);
+    redacted.put("redactedDataUrl", url.substring(0, comma));
+    return redacted;
   }
 
   static ObjectNode digest(byte[] bytes) {

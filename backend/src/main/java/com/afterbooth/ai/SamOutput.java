@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -29,10 +30,10 @@ final class SamOutput {
       Map<String, String> mask = fields(matcher.group(3));
       segments.add(
           new SamSegment(
-              Integer.parseInt(matcher.group(1)),
+              number(matcher.group(1), "id", Integer::parseInt),
               new PixelBox(
                   integer(box, "x1"), integer(box, "y1"), integer(box, "x2"), integer(box, "y2")),
-              Double.parseDouble(field(box, "c")),
+              number(field(box, "c"), "c", Double::parseDouble),
               new SamSegment.Mask(integer(mask, "x"), integer(mask, "y"), matcher.group(4))));
     }
     long objects = BOX_TOKEN.matcher(text).results().count();
@@ -48,11 +49,30 @@ final class SamOutput {
     return Arrays.stream(group.split(";"))
         .filter(pair -> pair.contains("="))
         .map(pair -> pair.split("=", 2))
-        .collect(Collectors.toMap(pair -> pair[0], pair -> pair[1]));
+        .collect(
+            Collectors.toMap(
+                pair -> pair[0],
+                pair -> pair[1],
+                (first, second) -> {
+                  throw new AiCallException(
+                      Capability.SAM, "an object in the output repeats a field: " + group);
+                }));
   }
 
   private static int integer(Map<String, String> fields, String name) {
-    return Integer.parseInt(field(fields, name));
+    return number(field(fields, name), name, Integer::parseInt);
+  }
+
+  private static <T> T number(String value, String name, Function<String, T> parse) {
+    try {
+      return parse.apply(value);
+    } catch (NumberFormatException e) {
+      throw new AiCallException(
+          Capability.SAM,
+          null,
+          "an object in the output has a non-numeric " + name + ": " + value,
+          e);
+    }
   }
 
   private static String field(Map<String, String> fields, String name) {

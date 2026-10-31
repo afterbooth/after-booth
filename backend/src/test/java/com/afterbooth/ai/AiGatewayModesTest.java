@@ -14,6 +14,8 @@ import java.util.Base64;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 import tools.jackson.databind.JsonNode;
 
 /** live, record and replay against a local stub server; nothing here touches the network. */
@@ -171,6 +173,34 @@ class AiGatewayModesTest {
               });
       assertThat(fixtureFiles(fixtures)).isEmpty();
     }
+  }
+
+  @ParameterizedTest
+  @EnumSource(
+      value = AiMode.class,
+      names = {"LIVE", "RECORD"})
+  void userTextThatLooksLikeADataUrlIsSentAndRecordedUnchanged(AiMode mode) {
+    String text = "data:image/png;base64,not-valid!";
+    ChatRequest request =
+        new ChatRequest(
+            List.of(new ChatRequest.UserMessage(text, List.of())), null, List.of(), null);
+    try (StubMetaServer meta = new StubMetaServer()) {
+      meta.respond(200, spikeResponse("spark-text/rack-sedan-1.json"));
+
+      gateway(mode, meta.baseUrl(), fixtures, KEY).chat(request);
+
+      JsonNode sent = AiTestSupport.JSON.readTree(meta.received().getFirst().body());
+      assertThat(sent.at("/messages/0/content").stringValue()).isEqualTo(text);
+    }
+    for (Path file : fixtureFiles(fixtures)) {
+      assertThat(
+              AiTestSupport.JSON
+                  .readTree(read(file))
+                  .at("/request/body/messages/0/content")
+                  .stringValue())
+          .isEqualTo(text);
+    }
+    assertThat(fixtureFiles(fixtures)).hasSize(mode == AiMode.RECORD ? 1 : 0);
   }
 
   @Test

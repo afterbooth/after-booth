@@ -82,7 +82,7 @@ class FixtureStoreTest {
 
   @Test
   void redactionReplacesTheImagePayloadWithItsDigest() {
-    JsonNode image = redacted("m", "AQID").path("image");
+    JsonNode image = redacted("m", "AQID").path("image_url");
 
     assertThat(image.path("redactedDataUrl").stringValue()).isEqualTo("data:image/jpeg;base64");
     assertThat(image.path("bytes").asInt()).isEqualTo(3);
@@ -91,9 +91,37 @@ class FixtureStoreTest {
         .isEqualTo("039058c6f2c0cb492c533b0a4d14ef77cc0f78abccced5287d84a1a2011cfb81");
   }
 
+  @Test
+  void redactionAlsoReachesSparkNestedImageUrl() {
+    JsonNode redacted =
+        FixtureStore.redact(
+            JSON.readTree("{\"image_url\":{\"url\":\"data:image/jpeg;base64,AQID\"}}"));
+
+    assertThat(redacted.at("/image_url/url/bytes").asInt()).isEqualTo(3);
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"data:image/png;base64,not-valid!", "data:image/png;base64,AQID"})
+  void textOutsideImageUrlIsNeverRedacted(String text) {
+    JsonNode request = JSON.readTree("{\"messages\":[{\"content\":\"" + text + "\"}]}");
+
+    assertThat(FixtureStore.redact(request)).isEqualTo(request);
+  }
+
+  @Test
+  void anImageUrlThatIsNotBase64StaysAsItIs() {
+    JsonNode request = JSON.readTree("{\"image_url\":\"data:image/png;base64,not-valid!\"}");
+
+    assertThat(FixtureStore.redact(request)).isEqualTo(request);
+  }
+
   private static JsonNode redacted(String model, String base64) {
     return FixtureStore.redact(
         JSON.readTree(
-            "{\"model\":\"" + model + "\",\"image\":\"data:image/jpeg;base64," + base64 + "\"}"));
+            "{\"model\":\""
+                + model
+                + "\",\"image_url\":\"data:image/jpeg;base64,"
+                + base64
+                + "\"}"));
   }
 }
