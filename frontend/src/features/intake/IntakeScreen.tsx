@@ -64,7 +64,8 @@ export function IntakeScreen() {
           className="sr-only"
           disabled={busy}
           onChange={(e) => {
-            const photo = e.target.files?.[0]
+            const photo = e.currentTarget.files?.[0]
+            e.currentTarget.value = ''
             if (photo) void upload(photo)
           }}
         />

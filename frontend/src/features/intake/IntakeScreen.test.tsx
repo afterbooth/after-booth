@@ -92,6 +92,29 @@ test('shows the server failure message and lets the user retake the photo', asyn
   expect(screen.getByLabelText('다시 찍기')).toBeEnabled()
 })
 
+test('starts a second upload when the same photo is selected after a failed draft', async () => {
+  let createRequests = 0
+  server.use(
+    http.post('*/api/intake/drafts', () => {
+      createRequests += 1
+      return HttpResponse.json(
+        draft({ status: 'FAILED', lines: [], failureMessage: '사진이 너무 어두워요.' }),
+        { status: 202 },
+      )
+    }),
+  )
+  const photo = new File(['x'], 'booth.jpg', { type: 'image/jpeg' })
+  render(<IntakeScreen />)
+
+  await userEvent.upload(screen.getByLabelText('부스 사진 찍기'), photo)
+  expect(await screen.findByRole('alert')).toHaveTextContent('사진이 너무 어두워요.')
+  expect(createRequests).toBe(1)
+
+  await userEvent.upload(screen.getByLabelText('다시 찍기'), photo)
+
+  await waitFor(() => expect(createRequests).toBe(2))
+})
+
 test('highlights lines that need review', async () => {
   createReturns(draft({ lines: [line({ needsReview: true })] }))
   render(<IntakeScreen />)
