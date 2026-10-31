@@ -27,19 +27,21 @@ Write the review in English in the `docs/REVIEW_GUIDE.md` §Review format, so it
 
 ### Output format (strict — the orchestrator parses it)
 
-The `docs/REVIEW_GUIDE.md` §Review format, at most 25 lines:
+The `docs/REVIEW_GUIDE.md` §Review format (or §Re-review format), with every heading in order even when empty (`None.`):
 
 ```
-**Verdict:** Approve | Request changes — <main reason>
-**Coherence:** OK | <one line>
-**Counts:** blocking N · suggestion N · question N · nitpick N
-
-| ID | Label | Where | Finding | Fix |
-|---|---|---|---|---|
-| R1 | issue (blocking) | path/File.java:42 | <one line> | <one line> |
+## Verdict: Approve (no blocking) | Request changes (blocking N)
+### Scope (<focus areas>)
+### Build verification
+### QA
+### Blocking
+### Suggestions (non-blocking)
+### Notes
 ```
 
-At most 5 suggestions. Nothing before the verdict, no praise section.
+- Every finding is `**R<n> — <title>** (<file:line>)`. `file:line` is the line in the file at the PR head, not a diff position.
+- Leave the closing **Reviewers** line to the orchestrator; it merges your review with Codex's.
+- After the review, add a section `### Evidence (not for posting)` with the exact lines you compared for each blocking finding.
 
 ## Scoring mode (Phase 2)
 
