@@ -32,6 +32,7 @@ The `docs/REVIEW_GUIDE.md` §Review format (or §Re-review format), with every h
 ```
 ## Verdict: Approve (no blocking) | Request changes (blocking N)
 ### Scope (<focus areas>)
+### Previous findings (re-review only: numbered list, no table)
 ### Build verification
 ### QA
 ### Blocking
