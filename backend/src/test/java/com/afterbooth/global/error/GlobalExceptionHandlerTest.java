@@ -75,6 +75,40 @@ class GlobalExceptionHandlerTest {
         .andExpect(jsonPath("$.message").value("잠시 후 다시 시도해 주세요."));
   }
 
+  @Test
+  void missingRequestParameterMapsToInvalidInput() throws Exception {
+    mockMvc
+        .perform(get("/fake/param"))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.code").value("INVALID_INPUT"));
+  }
+
+  @Test
+  void missingRequestHeaderMapsToInvalidInput() throws Exception {
+    mockMvc
+        .perform(get("/fake/header"))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.code").value("INVALID_INPUT"));
+  }
+
+  @Test
+  void missingMultipartPartMapsToInvalidInput() throws Exception {
+    mockMvc
+        .perform(
+            org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart(
+                "/fake/part"))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.code").value("INVALID_INPUT"));
+  }
+
+  @Test
+  void oversizedUploadMapsToInvalidInput() throws Exception {
+    mockMvc
+        .perform(get("/fake/oversized"))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.code").value("INVALID_INPUT"));
+  }
+
   @RestController
   static class FakeController {
 
@@ -90,6 +124,23 @@ class GlobalExceptionHandlerTest {
 
     @PostMapping("/fake/qty")
     void qty(@Valid @RequestBody QtyRequest request) {}
+
+    @GetMapping("/fake/param")
+    void param(@org.springframework.web.bind.annotation.RequestParam String required) {}
+
+    @GetMapping("/fake/header")
+    void header(
+        @org.springframework.web.bind.annotation.RequestHeader("Required") String required) {}
+
+    @PostMapping("/fake/part")
+    void part(
+        @org.springframework.web.bind.annotation.RequestPart
+            org.springframework.web.multipart.MultipartFile audio) {}
+
+    @GetMapping("/fake/oversized")
+    void oversized() {
+      throw new org.springframework.web.multipart.MaxUploadSizeExceededException(1920044);
+    }
 
     @GetMapping("/fake/boom")
     void boom() {

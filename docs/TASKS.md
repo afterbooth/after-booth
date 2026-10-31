@@ -31,7 +31,7 @@ The unit of work is a GitHub issue. Owners: **DY** = namdongyeob, **WJ** = WookJ
 | #9 | Allocation agent (function calling, server validation, alternatives) + allocation board | WJ | BE+AI+FE |
 | #10 | Handover recount + reuse stats + screens | WJ | BE+AI+FE |
 
-- [x] #3 · [x] #4 · [x] #5 · [ ] #6 · [x] #7 · [ ] #8 · [ ] #9 · [ ] #10
+- [x] #3 · [x] #4 · [x] #5 · [x] #6 · [x] #7 · [ ] #8 · [ ] #9 · [ ] #10
 
 #7 implemented in PR #34; review revisions are verified locally and merge is pending. In `backend/`, `./gradlew spotlessApply compileJava compileTestJava spotlessCheck test --tests '*ReservationIntegrationTest' --tests '*DefaultVehicleHoldIntegrationTest' --tests '*VehicleFitPolicyTest' --tests '*ReservationRulesTest' --tests '*ReservationSchedulerTest' --tests 'com.afterbooth.ArchitectureTest' --tests 'com.afterbooth.CoreSchemaIntegrationTest' --tests '*CoreDomainTest' --tests '*GlobalExceptionHandlerTest' --no-daemon` passed all 74 selected tests, including 32 reservation and two default-configuration PostgreSQL HTTP tests. Cargo defaults and overrides follow D-040; #9/#10 integration boundaries follow D-041/D-039. Frontend, live AI and end-to-end demo were not run.
 
