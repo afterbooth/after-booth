@@ -215,12 +215,11 @@ export function useRequest() {
           }
           break
         } catch (error) {
-          if (
-            !(error instanceof ApiError) ||
-            error.code !== 'IDEMPOTENCY_CONFLICT' ||
-            attempt === 3
-          )
+          if (!(error instanceof ApiError) || error.code !== 'IDEMPOTENCY_CONFLICT') throw error
+          if (attempt === 3) {
+            idempotencyKey.current = undefined
             throw error
+          }
           await new Promise((resolve) => setTimeout(resolve, 1000 * 2 ** attempt))
           if (!active.current) return
         }

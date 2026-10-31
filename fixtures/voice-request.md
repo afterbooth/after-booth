@@ -13,9 +13,8 @@ Without the property, RECEIVER uses the current Seoul date. The Spark user messa
 contains `referenceDate` only, with no wall-clock timestamp. Record and replay
 support both pin the same Seoul date, 2026-10-31.
 
-PR #38 R3 migrated the recorded Spark request key by removing the unused
-`currentTime` field. The previously recorded response is preserved verbatim;
-this migration is not evidence of a new live call.
+After PR #38 R3 removed `currentTime` from the Spark input, Transcribe and Spark were
+re-recorded live on 2026-10-31 (Spark 840 tokens, purpose "주말 행사용"; `docs/BUDGET.md`).
 
 A human may record the Transcribe and Spark responses after the credit gate:
 

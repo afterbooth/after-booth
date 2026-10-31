@@ -89,3 +89,27 @@ test('keeps the key during automatic in-flight conflict retries', async () => {
   expect(keys()).toHaveLength(2)
   expect(keys()[1]).toBe(keys()[0])
 })
+
+test('uses a new key on the next submit after exhausting conflict retries', async () => {
+  const { result } = await ready()
+  api.create.mockRejectedValue(new ApiError(409, 'IDEMPOTENCY_CONFLICT', '처리 중'))
+  vi.useFakeTimers()
+  try {
+    await act(async () => {
+      const submission = result.current.submit()
+      await vi.runAllTimersAsync()
+      await submission
+    })
+    expect(result.current.status).toBe('error')
+    expect(keys()).toHaveLength(4)
+    expect(new Set(keys()).size).toBe(1)
+
+    api.create.mockResolvedValueOnce({ status: 201, data: { id: 42 } })
+    await act(() => result.current.submit())
+    expect(keys()).toHaveLength(5)
+    expect(keys()[4]).toMatch(/^[0-9a-f-]{36}$/)
+    expect(keys()[4]).not.toBe(keys()[0])
+  } finally {
+    vi.useRealTimers()
+  }
+})
