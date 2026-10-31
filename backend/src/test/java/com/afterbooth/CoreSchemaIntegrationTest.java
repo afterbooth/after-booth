@@ -26,7 +26,6 @@ import jakarta.persistence.EntityManager;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -47,6 +46,32 @@ class CoreSchemaIntegrationTest {
   void migrationSeedsOrganizationsAndAllThreeDemoCategories() {
     assertThat(jdbc.queryForObject("SELECT count(*) FROM organization", Long.class)).isEqualTo(3);
     assertThat(jdbc.queryForObject("SELECT count(*) FROM event", Long.class)).isEqualTo(1);
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT total_qty FROM item WHERE category = 'DISPLAY_RACK'", Integer.class))
+        .isEqualTo(1);
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT total_qty FROM item WHERE category = 'STORAGE_BIN'", Integer.class))
+        .isEqualTo(12);
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT total_qty FROM item WHERE category = 'FOLDING_TABLE'", Integer.class))
+        .isEqualTo(3);
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT vehicle_requirement FROM item WHERE category = 'FOLDING_TABLE'",
+                String.class))
+        .isEqualTo("SEDAN");
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT bool_and(pickup_deadline > now()) FROM item", Boolean.class))
+        .isTrue();
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT bool_and(pickup_deadline = e.teardown_deadline) FROM item i JOIN event e ON i.event_id = e.id",
+                Boolean.class))
+        .isTrue();
     assertThat(jdbc.queryForList("SELECT category FROM item", String.class))
         .containsExactlyInAnyOrder("DISPLAY_RACK", "STORAGE_BIN", "FOLDING_TABLE");
     assertThat(
@@ -129,6 +154,7 @@ class CoreSchemaIntegrationTest {
         "UPDATE idempotency_record SET state = 'DONE', response_status = 200, response_body = CAST(? AS jsonb) WHERE idempotency_key = ?",
         "{\"quantity\":1,\"nested\":{\"status\":\"HELD\"}}",
         key);
+    jdbc.update("UPDATE handover_log SET accepted_qty = 1 WHERE id = ?", log.id());
     entityManager.clear();
 
     assertThat(entityManager.find(IntakeDraftLine.class, line.id()).boxes()).isEqualTo(boxes);
@@ -138,12 +164,65 @@ class CoreSchemaIntegrationTest {
         .isEqualTo(ReservationStatus.HELD);
     assertThat(entityManager.find(ReservationTransition.class, transition.id()).fromStatus())
         .isNull();
-    assertThat(entityManager.find(HandoverLog.class, log.id()).boxes()).isEmpty();
+    HandoverLog resolved = entityManager.find(HandoverLog.class, log.id());
+    assertThat(resolved.boxes()).isEmpty();
+    assertThat(resolved.status()).isEqualTo(HandoverStatus.MISMATCH);
+    assertThat(resolved.acceptedQty()).isEqualTo(1);
     assertThat(entityManager.find(HandoverLog.class, segmentedMismatch.id()).boxes())
         .isEqualTo(boxes);
     assertThat(entityManager.find(IdempotencyRecord.class, key).responseBody())
-        .containsEntry("quantity", 1)
-        .containsEntry("nested", Map.of("status", "HELD"));
+        .isEqualTo(
+            jdbc.queryForObject(
+                "SELECT response_body::text FROM idempotency_record WHERE idempotency_key = ?",
+                String.class,
+                key))
+        .startsWith("{")
+        .contains("HELD");
+  }
+
+  @Test
+  void idempotencyResponsePreservesTopLevelArrays() {
+    UUID key = UUID.randomUUID();
+    entityManager.persist(IdempotencyRecord.begin(key, "POST /intake/confirm hash", Instant.EPOCH));
+    entityManager.flush();
+    jdbc.update(
+        "UPDATE idempotency_record SET state = 'DONE', response_status = 200, response_body = CAST(? AS jsonb) WHERE idempotency_key = ?",
+        "[{\"id\":1,\"category\":\"DISPLAY_RACK\"},{\"id\":2}]",
+        key);
+    entityManager.clear();
+    assertThat(entityManager.find(IdempotencyRecord.class, key).responseBody())
+        .isEqualTo(
+            jdbc.queryForObject(
+                "SELECT response_body::text FROM idempotency_record WHERE idempotency_key = ?",
+                String.class,
+                key))
+        .startsWith("[")
+        .contains("DISPLAY_RACK");
+  }
+
+  @Test
+  void databaseRejectsPartialDraftDimensions() {
+    Long eventId = jdbc.queryForObject("SELECT id FROM event LIMIT 1", Long.class);
+    IntakeDraft draft = IntakeDraft.start(eventId, Instant.EPOCH);
+    entityManager.persist(draft);
+    entityManager.persist(
+        IntakeDraftLine.identify(
+            draft.id(),
+            DraftCategory.UNKNOWN,
+            0,
+            List.of(),
+            null,
+            null,
+            null,
+            Condition.FAIR,
+            BigDecimal.ZERO,
+            true));
+    entityManager.flush();
+    assertThatThrownBy(
+            () ->
+                jdbc.update(
+                    "UPDATE intake_draft_line SET width_cm = 90 WHERE draft_id = ?", draft.id()))
+        .isInstanceOf(DataIntegrityViolationException.class);
   }
 
   @Test

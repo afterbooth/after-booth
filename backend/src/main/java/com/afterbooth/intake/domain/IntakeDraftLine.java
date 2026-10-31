@@ -80,6 +80,8 @@ public class IntakeDraftLine {
         || boxes.size() != count
         || confidence.compareTo(BigDecimal.ZERO) < 0
         || confidence.compareTo(BigDecimal.ONE) > 0
+        || !((widthCm == null && depthCm == null && heightCm == null)
+            || (widthCm != null && depthCm != null && heightCm != null))
         || (widthCm != null && widthCm <= 0)
         || (depthCm != null && depthCm <= 0)
         || (heightCm != null && heightCm <= 0)) invalid();

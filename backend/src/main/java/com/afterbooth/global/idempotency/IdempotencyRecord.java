@@ -9,8 +9,6 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.time.Instant;
-import java.util.Map;
-import java.util.Objects;
 import java.util.UUID;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
@@ -31,7 +29,7 @@ public class IdempotencyRecord {
 
   @JdbcTypeCode(SqlTypes.JSON)
   @Column(nullable = true, columnDefinition = "jsonb")
-  private Map<String, Object> responseBody;
+  private String responseBody;
 
   @Column(nullable = false)
   private Instant createdAt;
@@ -39,18 +37,11 @@ public class IdempotencyRecord {
   protected IdempotencyRecord() {}
 
   private IdempotencyRecord(UUID idempotencyKey, String fingerprint, Instant createdAt) {
-    this.idempotencyKey = Objects.requireNonNull(idempotencyKey);
-    IdempotencyState state = IdempotencyState.IN_PROGRESS;
-    Integer responseStatus = null;
-    Map<String, Object> responseBody = null;
-    Objects.requireNonNull(fingerprint);
-    Objects.requireNonNull(state);
-    Objects.requireNonNull(createdAt);
-    if (fingerprint == null || fingerprint.isBlank()) invalid();
+    if (idempotencyKey == null || fingerprint == null || fingerprint.isBlank() || createdAt == null)
+      invalid();
+    this.idempotencyKey = idempotencyKey;
     this.fingerprint = fingerprint;
-    this.state = state;
-    this.responseStatus = responseStatus;
-    this.responseBody = responseBody;
+    this.state = IdempotencyState.IN_PROGRESS;
     this.createdAt = createdAt;
   }
 
@@ -79,7 +70,7 @@ public class IdempotencyRecord {
     return responseStatus;
   }
 
-  public Map<String, Object> responseBody() {
+  public String responseBody() {
     return responseBody;
   }
 

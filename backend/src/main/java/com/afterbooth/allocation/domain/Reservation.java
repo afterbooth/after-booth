@@ -62,7 +62,6 @@ public class Reservation {
     Objects.requireNonNull(requestId);
     Objects.requireNonNull(itemId);
     Objects.requireNonNull(organizationId);
-    Objects.requireNonNull(status);
     Objects.requireNonNull(holdExpiresAt);
     Objects.requireNonNull(pickupDeadline);
     Objects.requireNonNull(createdAt);

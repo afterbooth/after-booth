@@ -8,7 +8,6 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
-import java.util.Objects;
 
 @Entity
 @Table(name = "organization")
@@ -23,7 +22,6 @@ public class Organization {
   protected Organization() {}
 
   private Organization(String name) {
-    Objects.requireNonNull(name);
     if (name == null || name.isBlank()) invalid();
     this.name = name;
   }

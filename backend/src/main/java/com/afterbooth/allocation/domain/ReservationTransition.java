@@ -44,7 +44,6 @@ public class ReservationTransition {
     ReservationStatus fromStatus = null;
     ReservationStatus toStatus = ReservationStatus.HELD;
     Objects.requireNonNull(reservationId);
-    Objects.requireNonNull(toStatus);
     Objects.requireNonNull(actor);
     Objects.requireNonNull(at);
     if ((actor != TransitionActor.AGENT && actor != TransitionActor.USER)) invalid();

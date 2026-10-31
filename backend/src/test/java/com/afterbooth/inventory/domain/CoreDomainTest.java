@@ -6,6 +6,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import com.afterbooth.allocation.domain.Reservation;
 import com.afterbooth.global.domain.BoundingBox;
 import com.afterbooth.global.error.BusinessException;
+import com.afterbooth.global.error.ErrorCode;
+import com.afterbooth.global.idempotency.IdempotencyRecord;
 import com.afterbooth.handover.domain.HandoverLog;
 import com.afterbooth.handover.domain.HandoverStatus;
 import com.afterbooth.intake.domain.DraftCategory;
@@ -13,6 +15,7 @@ import com.afterbooth.intake.domain.IntakeDraftLine;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
+import java.util.UUID;
 import org.junit.jupiter.api.Test;
 
 class CoreDomainTest {
@@ -121,6 +124,57 @@ class CoreDomainTest {
                     BigDecimal.ONE,
                     true))
         .isInstanceOf(BusinessException.class);
+  }
+
+  @Test
+  void draftRejectsPartiallySpecifiedDimensions() {
+    assertThatThrownBy(
+            () ->
+                IntakeDraftLine.identify(
+                    1L,
+                    DraftCategory.UNKNOWN,
+                    0,
+                    List.of(),
+                    90,
+                    null,
+                    null,
+                    Condition.FAIR,
+                    BigDecimal.ZERO,
+                    true))
+        .isInstanceOf(BusinessException.class);
+    assertThatThrownBy(
+            () ->
+                IntakeDraftLine.identify(
+                    1L,
+                    DraftCategory.UNKNOWN,
+                    0,
+                    List.of(),
+                    null,
+                    40,
+                    180,
+                    Condition.FAIR,
+                    BigDecimal.ZERO,
+                    true))
+        .isInstanceOf(BusinessException.class);
+  }
+
+  @Test
+  void nullCreationInputsProduceTypedInvalidInputErrors() {
+    assertInvalidInput(() -> Organization.create(null));
+    assertInvalidInput(() -> Event.schedule(null, "Event", "Seoul", DEADLINE));
+    assertInvalidInput(() -> Event.schedule(1L, null, "Seoul", DEADLINE));
+    assertInvalidInput(() -> Event.schedule(1L, "Event", null, DEADLINE));
+    assertInvalidInput(() -> Event.schedule(1L, "Event", "Seoul", null));
+    assertInvalidInput(() -> IdempotencyRecord.begin(null, "fingerprint", NOW));
+    assertInvalidInput(() -> IdempotencyRecord.begin(UUID.randomUUID(), null, NOW));
+    assertInvalidInput(() -> IdempotencyRecord.begin(UUID.randomUUID(), "fingerprint", null));
+  }
+
+  private static void assertInvalidInput(Runnable action) {
+    assertThatThrownBy(action::run)
+        .isInstanceOfSatisfying(
+            BusinessException.class,
+            exception -> assertThat(exception.errorCode()).isEqualTo(ErrorCode.INVALID_INPUT));
   }
 
   @Test

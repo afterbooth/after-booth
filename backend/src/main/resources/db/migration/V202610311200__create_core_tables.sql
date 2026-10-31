@@ -37,7 +37,9 @@ CREATE TABLE intake_draft_line (
   CHECK (confidence BETWEEN 0 AND 1),
   CHECK (width_cm > 0),
   CHECK (depth_cm > 0),
-  CHECK (height_cm > 0)
+  CHECK (height_cm > 0),
+  CHECK ((width_cm IS NULL AND depth_cm IS NULL AND height_cm IS NULL)
+      OR (width_cm IS NOT NULL AND depth_cm IS NOT NULL AND height_cm IS NOT NULL))
 );
 
 CREATE TABLE item (
@@ -111,7 +113,7 @@ CREATE TABLE handover_log (
   CHECK (expected_qty > 0),
   CHECK (counted_qty >= 0),
   CHECK (accepted_qty >= 0 AND accepted_qty <= expected_qty),
-  CHECK ((status = 'COMPLETED') = (accepted_qty IS NOT NULL))
+  CHECK (status = 'MISMATCH' OR accepted_qty IS NOT NULL)
 );
 
 CREATE TABLE idempotency_record (
@@ -129,7 +131,7 @@ INSERT INTO organization (name) VALUES
   ('Campus Festival Crew');
 
 INSERT INTO event (organization_id, name, venue, teardown_deadline)
-SELECT id, 'AfterBooth Seoul Demo', 'Seoul', '2026-11-05 20:00:00+09'
+SELECT id, 'AfterBooth Seoul Demo', 'Seoul', now() + interval '7 days'
 FROM organization WHERE name = 'Seoul Event Collective';
 
 INSERT INTO item (event_id, organization_id, category, label, width_cm, depth_cm,
@@ -138,8 +140,8 @@ INSERT INTO item (event_id, organization_id, category, label, width_cm, depth_cm
 SELECT e.id, e.organization_id, v.category, v.label, v.width_cm, v.depth_cm,
        v.height_cm, 'GOOD', v.quantity, v.quantity, e.teardown_deadline, v.vehicle
 FROM event e CROSS JOIN (VALUES
-  ('DISPLAY_RACK', '진열대', 90, 40, 180, 4, 'VAN'),
+  ('DISPLAY_RACK', '진열대', 90, 40, 180, 1, 'VAN'),
   ('STORAGE_BIN', '수납함', 60, 40, 35, 12, 'SEDAN'),
-  ('FOLDING_TABLE', '접이식 테이블', 120, 60, 10, 3, 'SUV')
+  ('FOLDING_TABLE', '접이식 테이블', 120, 60, 10, 3, 'SEDAN')
 ) AS v(category, label, width_cm, depth_cm, height_cm, quantity, vehicle)
 WHERE e.name = 'AfterBooth Seoul Demo';

@@ -9,7 +9,6 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.time.Instant;
-import java.util.Objects;
 
 @Entity
 @Table(name = "event")
@@ -33,11 +32,12 @@ public class Event {
   protected Event() {}
 
   private Event(Long organizationId, String name, String venue, Instant teardownDeadline) {
-    Objects.requireNonNull(organizationId);
-    Objects.requireNonNull(name);
-    Objects.requireNonNull(venue);
-    Objects.requireNonNull(teardownDeadline);
-    if (name == null || name.isBlank() || venue == null || venue.isBlank()) invalid();
+    if (organizationId == null
+        || name == null
+        || name.isBlank()
+        || venue == null
+        || venue.isBlank()
+        || teardownDeadline == null) invalid();
     this.organizationId = organizationId;
     this.name = name;
     this.venue = venue;
