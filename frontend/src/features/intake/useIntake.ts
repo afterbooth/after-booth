@@ -244,8 +244,7 @@ export function useIntake() {
       if (!controller.signal.aborted) setItems(bodyOf<Item[]>(res))
     } catch (e) {
       if (controller.signal.aborted) return
-      if (e instanceof ApiError && e.code === 'IDEMPOTENCY_CONFLICT')
-        confirmAttempt.current = undefined
+      if (e instanceof ApiError) confirmAttempt.current = undefined
       setError(messageOf(e, '재고로 등록하지 못했어요. 다시 시도해 주세요.'))
     } finally {
       if (!controller.signal.aborted) setConfirming(false)

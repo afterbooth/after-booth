@@ -24,6 +24,7 @@ import com.afterbooth.intake.pipeline.IntakePhoto;
 import com.afterbooth.intake.pipeline.IntakePipeline;
 import com.afterbooth.inventory.domain.Condition;
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.List;
 import java.util.concurrent.RejectedExecutionException;
 import org.junit.jupiter.api.Test;
@@ -183,7 +184,7 @@ class IntakeProcessorTest {
             "minimal",
             new BigDecimal("0.8"),
             0.5);
-    var draft = IntakeDraft.start(1L, java.time.Instant.EPOCH);
+    var draft = IntakeDraft.start(1L, Instant.EPOCH);
     doAnswer(
             invocation -> {
               draft.fail(invocation.getArgument(1));
@@ -201,7 +202,7 @@ class IntakeProcessorTest {
   }
 
   private IntakeDraft trackFailure() {
-    IntakeDraft draft = IntakeDraft.start(1L, java.time.Instant.EPOCH);
+    IntakeDraft draft = IntakeDraft.start(1L, Instant.EPOCH);
     doAnswer(
             invocation -> {
               draft.fail(invocation.getArgument(1));

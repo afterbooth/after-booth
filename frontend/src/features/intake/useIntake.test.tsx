@@ -134,6 +134,29 @@ test.each(['create', 'confirm'] as const)(
   },
 )
 
+test('confirm uses a new key after a server error with an unchanged request', async () => {
+  vi.mocked(confirmIntakeDraft).mockRejectedValueOnce(
+    new ApiError(500, 'INTERNAL_ERROR', '잠시 후 다시 시도해 주세요.'),
+  )
+  const { result } = renderHook(() => useIntake())
+  await act(async () => {
+    await result.current.upload(photo)
+  })
+  await act(async () => {
+    await result.current.confirm()
+  })
+  expect(result.current.error).toBe('잠시 후 다시 시도해 주세요.')
+  await act(async () => {
+    await result.current.confirm()
+  })
+  expect(confirmIntakeDraft).toHaveBeenCalledTimes(2)
+  const [first, second] = vi.mocked(confirmIntakeDraft).mock.calls
+  expect(second[1]).toEqual(first[1])
+  expect(second[2]['Idempotency-Key']).not.toBe(first[2]['Idempotency-Key'])
+  expect(result.current.error).toBeUndefined()
+  expect(result.current.items).toEqual([])
+})
+
 test('does not retry a non-conflict mutation error', async () => {
   vi.mocked(createIntakeDraft).mockRejectedValue(
     new ApiError(400, 'INVALID_INPUT', '사진을 확인해 주세요.'),
