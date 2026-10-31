@@ -11,6 +11,7 @@ import java.util.Base64;
 import java.util.HexFormat;
 import java.util.Map;
 import java.util.TreeMap;
+import tools.jackson.core.JacksonException;
 import tools.jackson.core.util.DefaultIndenter;
 import tools.jackson.core.util.DefaultPrettyPrinter;
 import tools.jackson.databind.JsonNode;
@@ -62,11 +63,24 @@ final class FixtureStore {
     if (!Files.isRegularFile(file)) {
       throw new MissingFixtureException(capability, key, file);
     }
+    JsonNode response;
     try {
-      return json.readTree(Files.readAllBytes(file)).path("response").path("body");
+      response = json.readTree(Files.readAllBytes(file)).path("response");
     } catch (IOException e) {
       throw new UncheckedIOException("Cannot read replay fixture " + file, e);
+    } catch (JacksonException e) {
+      throw new IllegalStateException("Replay fixture " + file + " is not valid JSON", e);
     }
+    // A setup error, never an AiCallException: callers treat those as model failures
+    int status = response.path("status").asInt(0);
+    if (status < 200 || status >= 300 || !response.path("body").isObject()) {
+      throw new IllegalStateException(
+          "Replay fixture "
+              + file
+              + " needs a 2xx response.status and a response.body object; re-record it"
+              + " (fixtures/README.md)");
+    }
+    return response.path("body");
   }
 
   void write(

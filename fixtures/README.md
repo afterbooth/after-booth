@@ -13,7 +13,7 @@ One file per recorded call: `fixtures/replay/<capability>/<key>.json`, where `<c
 ```json
 {
   "request": { "method": "POST", "path": "/v1/responses", "body": { "...": "redacted request" } },
-  "response": { "status": 200, "body": { "...": "the response exactly as Meta sent it" } }
+  "response": { "status": 200, "body": { "...": "the response as parsed JSON" } }
 }
 ```
 
@@ -22,8 +22,9 @@ One file per recorded call: `fixtures/replay/<capability>/<key>.json`, where `<c
   - `<canonical body>` is the request JSON with keys sorted at every level and no whitespace, after redaction: every `data:<mime>;base64,...` string becomes `{"bytes", "redactedDataUrl", "sha256"}` (the same redaction `spike/run.mjs` uses).
   - Transcribe is multipart, so its body is `{"request": <the JSON request part>, "audio": {"bytes", "sha256"}}`.
 - Anything in the request changes the key: model ID, prompt, schema, tools, `reasoning_effort`, image or audio bytes. Spark answers differ between runs, so the response is never part of the key.
+- So anything time- or race-dependent in a request misses in replay. Prompts take the current time from the injected `Clock`, and replay runs use a fixed `Clock`. Photos and audio must be byte-identical inputs. For the allocation demo, record both outcomes of the race.
 - The file holds the redacted request for humans and the response. The key and headers are never written. Only 2xx responses are recorded.
-- A replay request with no file throws `MissingFixtureException` naming the capability, the key, the expected path and how to record it. Replay never calls the network and never makes up a response.
+- A replay request with no file throws `MissingFixtureException` naming the capability, the key, the expected path and how to record it. A file without a 2xx `response.status` and a `response.body` object throws `IllegalStateException` naming the file. Replay never calls the network and never makes up a response.
 
 ## Recording
 

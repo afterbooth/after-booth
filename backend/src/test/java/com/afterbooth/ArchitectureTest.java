@@ -90,7 +90,10 @@ class ArchitectureTest {
         .resideOutsideOfPackage("com.afterbooth.ai..")
         .should()
         .dependOnClassesThat()
-        .resideInAPackage("org.springframework.web.client..")
+        .resideInAnyPackage(
+            "org.springframework.web.client..",
+            "org.springframework.http.client..",
+            "java.net.http..")
         .check(CLASSES);
   }
 

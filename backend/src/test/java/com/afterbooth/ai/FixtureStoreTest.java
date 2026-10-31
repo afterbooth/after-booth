@@ -2,14 +2,64 @@ package com.afterbooth.ai;
 
 import static com.afterbooth.ai.AiTestSupport.JSON;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import tools.jackson.databind.JsonNode;
 
 class FixtureStoreTest {
 
   private final FixtureStore store = new FixtureStore(Path.of("unused"), JSON);
+
+  @TempDir Path fixtures;
+
+  @Test
+  void readsTheBodyOfAValidFixture() throws IOException {
+    FixtureStore onDisk = new FixtureStore(fixtures, JSON);
+    Path file = writeFixture(onDisk, "{\"response\":{\"status\":200,\"body\":{\"ok\":true}}}");
+
+    assertThat(onDisk.readResponseBody(Capability.SPARK, key(file)).path("ok").asBoolean())
+        .isTrue();
+  }
+
+  // Replay setup errors must not look like model failures, which callers absorb
+  @ParameterizedTest
+  @ValueSource(
+      strings = {
+        "{\"response\":{\"status\":200}}",
+        "{\"response\":{\"status\":200,\"body\":\"text\"}}",
+        "{\"response\":{\"status\":500,\"body\":{}}}",
+        "{\"request\":{}}",
+        "not json"
+      })
+  void aBrokenFixtureIsASetupErrorNamingTheFile(String content) throws IOException {
+    FixtureStore onDisk = new FixtureStore(fixtures, JSON);
+    Path file = writeFixture(onDisk, content);
+
+    assertThatThrownBy(() -> onDisk.readResponseBody(Capability.SPARK, key(file)))
+        .isInstanceOf(IllegalStateException.class)
+        .isNotInstanceOf(AiCallException.class)
+        .isNotInstanceOf(MissingFixtureException.class)
+        .hasMessageContaining(file.toString());
+  }
+
+  private static Path writeFixture(FixtureStore store, String content) throws IOException {
+    Path file = store.file(Capability.SPARK, "k".repeat(64));
+    Files.createDirectories(file.getParent());
+    Files.writeString(file, content, StandardCharsets.UTF_8);
+    return file;
+  }
+
+  private static String key(Path file) {
+    return file.getFileName().toString().replace(".json", "");
+  }
 
   @Test
   void keyIgnoresPropertyOrder() {

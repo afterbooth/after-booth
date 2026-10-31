@@ -14,7 +14,8 @@ public class AiCallException extends RuntimeException {
     this.httpStatus = httpStatus;
   }
 
-  AiCallException(Capability capability, String message) {
+  /** Public so tests of the pipelines can fake a failed call from their own packages. */
+  public AiCallException(Capability capability, String message) {
     this(capability, null, message, null);
   }
 

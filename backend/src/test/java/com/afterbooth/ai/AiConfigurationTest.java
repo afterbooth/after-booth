@@ -2,6 +2,7 @@ package com.afterbooth.ai;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.nio.file.Path;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.ConfigDataApplicationContextInitializer;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
@@ -26,6 +27,17 @@ class AiConfigurationTest {
               assertThat(properties.mode()).isEqualTo(AiMode.REPLAY);
               assertThat(properties.paths().of(Capability.SAM)).isEqualTo("/v1/responses");
             });
+  }
+
+  @Test
+  void toStringNeverPrintsTheKey() {
+    AiProperties properties =
+        AiTestSupport.properties(
+            AiMode.LIVE, "https://api.meta.ai", Path.of("fixtures"), "secret-key-0123456789");
+
+    assertThat(properties.toString())
+        .doesNotContain("secret-key-0123456789")
+        .contains("apiKey=<redacted>", "mode=LIVE", "baseUrl=https://api.meta.ai");
   }
 
   @Test

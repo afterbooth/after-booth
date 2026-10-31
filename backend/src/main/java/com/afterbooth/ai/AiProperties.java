@@ -36,6 +36,28 @@ record AiProperties(
     }
   }
 
+  // The generated toString would print the key into logs and startup failure reports
+  @Override
+  public String toString() {
+    return "AiProperties[mode="
+        + mode
+        + ", fixturesDir="
+        + fixturesDir
+        + ", baseUrl="
+        + baseUrl
+        + ", apiKey="
+        + (apiKey == null || apiKey.isBlank() ? "<empty>" : "<redacted>")
+        + ", models="
+        + models
+        + ", paths="
+        + paths
+        + ", timeouts="
+        + timeouts
+        + ", transcribeLanguageBias="
+        + transcribeLanguageBias
+        + "]";
+  }
+
   record PerCapability(@NotBlank String spark, @NotBlank String sam, @NotBlank String transcribe) {
 
     String of(Capability capability) {
