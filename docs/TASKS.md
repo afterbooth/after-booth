@@ -31,7 +31,7 @@ The unit of work is a GitHub issue. Owners: **DY** = namdongyeob, **WJ** = WookJ
 | #9 | Allocation agent (function calling, server validation, alternatives) + allocation board | WJ | BE+AI+FE |
 | #10 | Handover recount + reuse stats + screens | WJ | BE+AI+FE |
 
-- [ ] #3 · [x] #4 · [ ] #5 · [ ] #6 · [ ] #7 · [ ] #8 · [ ] #9 · [ ] #10
+- [x] #3 · [x] #4 · [ ] #5 · [ ] #6 · [ ] #7 · [ ] #8 · [ ] #9 · [ ] #10
 
 Dependency order: #1 → (#3 and #4 in parallel) → #5·#6 (DY) / #7 → #8 → #9 → #10 (WJ)
 

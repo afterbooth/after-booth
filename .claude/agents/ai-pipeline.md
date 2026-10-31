@@ -25,7 +25,7 @@ Keep HTTP clients (`RestClient`) inside `com.afterbooth.ai` (checked by `Archite
 - FAILED is terminal. The user recovers by uploading the photo again with a new Idempotency-Key; there is no resume endpoint (contract `createIntakeDraft`, `docs/DECISIONS.md` D-018). The pipeline stores only the current `stage` for the progress UI.
 - Mark items below the confidence threshold as "needs review" (the threshold is configuration).
 - Spark counts and boxes; SAM 3.1 segments from those boxes (D-029, contract 0.2.0). If the SAM call fails, follow the contract: intake stays READY with Spark boxes and `needsReview`, handover returns 503.
-- All three models go through `RestClient` behind the gateway's one exchange seam; there is no Spring AI (D-036). Tool calls return to the caller, which runs and validates them.
+- All three models go through `RestClient` behind the gateway's one exchange seam; there is no Spring AI (D-037). Tool calls return to the caller, which runs and validates them.
 
 ## Credits
 
