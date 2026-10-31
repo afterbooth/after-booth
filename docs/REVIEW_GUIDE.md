@@ -1,64 +1,122 @@
 # Review guide
 
-Every PR gets three reviews before merge, and CI must be green (`backend`, `frontend`, `hygiene`, `pr-description`). Reviews put the verdict first, give each finding an ID, and stay short enough to read in a minute. All review text is in English.
+Every PR gets three reviews before merge, and CI must be green (`backend`, `frontend`, `hygiene`, `pr-description`). Each round is posted as **one** review body that starts with the verdict, says what was and was not verified, and gives every finding a stable ID. All review text is in English.
 
 | # | Reviewer | How | Blocks merge on |
 |---|---|---|---|
-| 1 | Claude `reviewer` agent (fresh session) | `/feature` step 5, or ask Claude to "run the reviewer agent on this PR" | any `issue (blocking)` |
-| 2 | Codex | `/codex:review --base main`; add `/codex:adversarial-review --base main <focus>` for concurrency, state machine, AI validation and contract PRs. Post its result in the review format below | any finding marked high severity |
-| 3 | Teammate (Muse Code or by hand) | GitHub review in the format below, optional for speed (0 approvals required) | any `issue (blocking)` |
+| 1 | Claude `reviewer` agent (fresh session) | `/feature` step 5, or ask Claude to "run the reviewer agent on this PR" | any blocking finding |
+| 2 | Codex | `/codex:review --base main`; add `/codex:adversarial-review --base main <focus>` for concurrency, state machine, AI validation and contract PRs | any finding marked high severity |
+| 3 | Teammate (Muse Code or by hand) | GitHub review in the format below, optional for speed (0 approvals required) | any blocking finding |
 
-The PR author answers every blocking finding by ID with the fix commit or a reason.
+Reviewers 1 and 2 run on the same head commit and are merged into one review: whoever posts verifies each finding against the code, drops what does not hold, and lists both tools in **Reviewers**. Never post one review per tool. The PR author answers in the [author reply format](#author-reply-format).
 
 ## Review format
 
-One review body, at most 25 lines. Nothing before the verdict; no background paragraphs, no praise section.
-
 ```markdown
-**Verdict:** Request changes — R1 lets a handover finish without a recount
-**Coherence:** OK | Title, "In one sentence" and Closes #N disagree: <one line>
-**Counts:** blocking 1 · suggestion 2 · question 1 · nitpick 1
+## Verdict: Request changes (blocking 1)
 
-| ID | Label | Where | Finding | Fix |
-|---|---|---|---|---|
-| R1 | issue (blocking) | contract/openapi.yaml:523 | resolveHandover can complete with no SAM recount | Require the newest handover_log row to be MISMATCH |
-| R2 | suggestion | contract/openapi.yaml:1138 | Hold TTL has no value | Pin 15 minutes |
-| R3 | question | contract/openapi.yaml:330 | Is a partial HELD allowed? | State the policy |
-| R4 | nitpick | docs/ERD.md:69 | Enum annotation missing | Annotate ItemCategory |
+### Scope (handover / contract / ERD)
+
+- Blocking 1 / suggestions 2 / notes 2.
+- Compared `origin/main` `<sha>` with PR head `<sha>`.
+- Coherence: the title, "In one sentence" and #10 describe the same change.
+- <What the diff was checked against: the issue goal, SPEC section, contract operations, ERD tables.>
+
+### Build verification
+
+- Head: `<sha>`.
+- CI: backend **pass** · frontend **pass** · hygiene **pass** · pr-description **pass**.
+- Re-run locally: `./gradlew test --tests "*Handover*"` — 12 passed. (Or: "Not re-run locally.")
+
+### QA
+
+- <Behavior exercised or traced in the code, and what it showed.>
+- Not run: <live Meta calls, the demo end to end, anything else not exercised>.
+
+### Blocking
+
+1. **R1 — `resolveHandover` completes without a photo recount** (`contract/openapi.yaml:523`)
+
+   <What the code does, quoting the line.>
+
+   <Why it breaks a rule: SPEC, contract, ERD or a decision, with its location.>
+
+   <The fix.>
+
+### Suggestions (non-blocking)
+
+1. **R2 — Hold TTL has no value** (`contract/openapi.yaml:1138`). <Why, and the fix.>
+
+### Notes
+
+1. **R3 — question:** Is a partial HELD allowed? (`contract/openapi.yaml:330`)
+2. Confirmed: <a risky part that checked out, so the author knows it was looked at>.
+
+Reviewers: Claude `reviewer` (<model>) · Codex `/codex:review` (<model>, <what it found or could not check>) · <who verified and posted>.
 ```
 
-- Verdict is `Approve` or `Request changes — <the main reason>`.
-- One table row per finding, one line per cell. `Where` is `file:line`.
-- At most 5 suggestions; drop the rest or merge them.
-- When a finding needs more than one line, put the detail in an inline comment on that line, starting with its ID: `R1 issue (blocking): ...` — problem, why, fix, one line each.
-- IDs are stable across rounds (R1, R2, ...). New findings in later rounds continue the numbering.
+- The heading is `## Verdict: Approve (no blocking)` or `## Verdict: Request changes (blocking N)`.
+- Every finding is `**R<n> — <one-line title>** (<file:line>)`. IDs are stable across rounds; new findings continue the numbering.
+- Blocking items get the problem, the rule it breaks and the fix, each in its own short paragraph. Suggestions and notes stay one item each.
+- A section with nothing in it says `None.` Keep it, so agents can find every heading.
+- Write only what you verified. Anything you did not run or could not check goes under **Not run** in QA, never as a pass.
 
 ## Re-review format
 
-After the author pushes fixes, review only what changed. At most 15 lines.
+Same headings. **Scope** names the new head commit and adds a **Previous findings** table; review only what changed since the last round.
 
 ```markdown
-**Verdict:** Approve
-**Previous findings:** 4 resolved, 0 not resolved
+## Verdict: Approve (no blocking)
 
-| ID | Status | Note (only if not resolved) |
+### Scope (re-review / handover)
+
+- Blocking 0 / suggestions 1 / notes 1.
+- Re-reviewed up to `<sha>` since `<previous sha>`.
+
+| ID | Status | Note |
 |---|---|---|
-| R1 | Resolved | |
-| R2 | Resolved | |
+| R1 | Resolved | `<commit>` requires the newest row to be MISMATCH |
+| R2 | Not resolved | <why it still matters, or "accepted by the author: <reason>"> |
 
-**New findings:** None
+### Build verification
+...
+### Blocking
+
+None.
 ```
 
-## Labels
+## Author reply format
 
-[Conventional Comments](https://conventionalcomments.org/) labels say how much a finding matters:
+Post one PR comment per round, after pushing the fixes.
 
-| Label | Meaning |
+```markdown
+Fixed R1 and R3; R2 kept with a reason.
+
+## Blocking
+
+1. **R1** — <what changed> (`<commit>`)
+
+## Suggestions
+
+1. **R2** — Not changed: <reason>
+
+## Notes
+
+1. **R3** — <answer>
+
+## Verification
+
+- `./gradlew test --tests "*Handover*"`: passed
+- Not run: <anything not run>
+```
+
+## What counts as blocking
+
+| Section | Meaning |
 |---|---|
-| `issue (blocking)` | Must fix before merge: a bug, a broken rule, a missing test, a contract or ERD mismatch |
-| `suggestion` | Better approach, author decides |
-| `question` | Reviewer does not understand. Answer, and consider a clearer name or comment |
-| `nitpick` | Tiny style point. Never blocks, table only |
+| Blocking | Must fix before merge: a bug, a broken hard rule, a missing test, a contract or ERD mismatch, anything that breaks the demo |
+| Suggestions | A better approach; the author decides |
+| Notes | Questions (label them `question:`), nitpicks, and risky parts that checked out. Never blocks |
 
 ## Checklist
 
