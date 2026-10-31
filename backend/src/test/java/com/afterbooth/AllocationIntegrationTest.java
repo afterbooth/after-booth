@@ -115,6 +115,9 @@ class AllocationIntegrationTest {
     assertThat(result.getStatusCode().value()).isEqualTo(200);
     assertThat(result.getBody()).contains("HELD", "5개 중 2개", "alternatives");
     assertThat(stock(item)).isZero();
+    var alternatives = json.readTree(result.getBody()).get("alternatives");
+    assertThat(alternatives.size()).isEqualTo(1);
+    assertThat(alternatives.get(0).get("item").get("id").asLong()).isEqualTo(alternative);
     var replay =
         idempotency.execute(
             key,
@@ -130,6 +133,74 @@ class AllocationIntegrationTest {
     assertThat(reservations.list(request, null)).hasSize(1);
     assertThat(reservations.hold(new HoldItemRequest(request, alternative, 3)).status().name())
         .isEqualTo("HELD");
+  }
+
+  @Test
+  void partialHoldOffersSameItemForManualTopUpAfterModelFailure() throws Exception {
+    long item = item("DISPLAY_RACK", 10, false, false);
+    long request = request(5);
+    ai.action =
+        input -> {
+          if (first(input)) return hold(item, 2);
+          throw new AiCallException(Capability.SPARK, "Local failure");
+        };
+
+    AllocationResult result = allocations.run(request);
+    assertThat(result.status()).isEqualTo("HELD");
+    assertThat(result.explanation()).contains("5개 중 2개");
+    assertThat(result.reservations())
+        .singleElement()
+        .satisfies(r -> assertThat(r.quantity()).isEqualTo(2));
+    assertThat(result.alternatives())
+        .singleElement()
+        .satisfies(
+            a -> {
+              assertThat(a.item().id()).isEqualTo(item);
+              assertThat(a.item().availableQty()).isEqualTo(8);
+              assertThat(a.quantity()).isEqualTo(3);
+            });
+    assertThat(result.rejections()).noneMatch(r -> r.itemId().equals(item));
+    assertThat(stock(item)).isEqualTo(8);
+
+    mvc.perform(
+            post("/api/reservations")
+                .header("Idempotency-Key", UUID.randomUUID())
+                .contentType("application/json")
+                .content(json.writeValueAsString(new HoldItemRequest(request, item, 3))))
+        .andExpect(status().isCreated())
+        .andExpect(jsonPath("$.quantity").value(3))
+        .andExpect(jsonPath("$.status").value("HELD"));
+    assertThat(reservations.list(request, null))
+        .hasSize(2)
+        .allSatisfy(r -> assertThat(r.status().name()).isEqualTo("HELD"));
+    assertThat(
+            reservations.list(request, null).stream().mapToInt(ReservationResponse::quantity).sum())
+        .isEqualTo(5);
+    assertThat(stock(item)).isEqualTo(5);
+
+    mvc.perform(
+            post("/api/reservations")
+                .header("Idempotency-Key", UUID.randomUUID())
+                .contentType("application/json")
+                .content(json.writeValueAsString(new HoldItemRequest(request, item, 1))))
+        .andExpect(status().isConflict())
+        .andExpect(jsonPath("$.code").value("QTY_EXCEEDS_REQUEST"));
+    assertThat(stock(item)).isEqualTo(5);
+    assertThat(reservations.list(request, null)).hasSize(2);
+  }
+
+  @Test
+  void fullyAllocatedRequestOffersNoAlternativesDespiteRemainingStock() {
+    long item = item("DISPLAY_RACK", 10, false, false);
+    long other = item("FOLDING_TABLE", 3, false, false);
+    propose(item, 5);
+
+    AllocationResult result = allocations.run(request(5));
+
+    assertThat(result.status()).isEqualTo("HELD");
+    assertThat(result.alternatives()).isEmpty();
+    assertThat(stock(item)).isEqualTo(5);
+    assertThat(stock(other)).isEqualTo(3);
   }
 
   @Test

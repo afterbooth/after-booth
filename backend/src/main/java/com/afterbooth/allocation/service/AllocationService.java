@@ -235,11 +235,9 @@ public class AllocationService {
   private AllocationResult result(Run run, String explanation) {
     int held = run.held.stream().mapToInt(ReservationResponse::quantity).sum();
     int remaining = run.request.quantity() - held;
-    Set<Long> heldIds = new HashSet<>();
-    run.held.forEach(r -> heldIds.add(r.itemId()));
     List<Alternative> alternatives = new ArrayList<>();
     for (Item item : inventory.candidates()) {
-      if (heldIds.contains(item.id()) || remaining <= 0) continue;
+      if (remaining <= 0) continue;
       VehicleFitResult fit = vehicles.checkFit(item, run.request.vehicleType());
       String code = AllocationCandidate.rejection(item, fit, clock.instant());
       if (code == null) {

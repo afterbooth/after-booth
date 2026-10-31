@@ -108,6 +108,71 @@ test('shows partial holds and caps alternative quantity to the remaining request
   expect(screen.getByRole('button', { name: '배정 제안 받기' })).toBeDisabled()
 })
 
+test('tops up the same item on the mounted page after the model fails following a partial hold', async () => {
+  const pickupRequest = { ...request, quantity: 5, category: item.category }
+  const originalItem = { ...item, totalQty: 10, availableQty: 10 }
+  const partialHold = { ...reservation, quantity: 2 }
+  const explanation =
+    '요청한 5개 중 2개를 임시 확보했어요. 예약 현황을 확인하고 직접 확정해 주세요.'
+  let allocations = 0
+  const payloads: unknown[] = []
+  let releaseHold: (() => void) | undefined
+  const locationBefore = window.location.href
+  const pushState = vi.spyOn(window.history, 'pushState')
+  const replaceState = vi.spyOn(window.history, 'replaceState')
+  server.use(
+    http.get('*/api/items', () => HttpResponse.json([originalItem])),
+    http.post('*/api/pickup-requests/1/allocation', () => {
+      allocations++
+      return HttpResponse.json({
+        ...result,
+        status: 'HELD',
+        explanation,
+        reservations: [partialHold],
+        rejections: [],
+        alternatives: [
+          {
+            item: { ...originalItem, availableQty: 8 },
+            quantity: 3,
+            reason: '선택하면 서버가 차량과 픽업 조건을 확인해요.',
+          },
+        ],
+      } satisfies AllocationResult)
+    }),
+    http.post('*/api/reservations', async ({ request: incoming }) => {
+      payloads.push(await incoming.json())
+      expect(incoming.headers.get('Idempotency-Key')).toMatch(/^[a-f0-9-]{36}$/)
+      await new Promise<void>((resolve) => {
+        releaseHold = resolve
+      })
+      return HttpResponse.json({ ...reservation, id: 10, quantity: 3 }, { status: 201 })
+    }),
+  )
+  render(<AllocationProposal request={pickupRequest} />)
+  const proposal = screen.getByRole('region', { name: '배정 제안' })
+  const user = userEvent.setup()
+  await waitFor(() => expect(screen.getByRole('button', { name: '배정 제안 받기' })).toBeEnabled())
+  await user.click(screen.getByRole('button', { name: '배정 제안 받기' }))
+  expect(await screen.findByText(explanation)).toBeInTheDocument()
+  expect(screen.getByText('5개 중 2개 확보 · 부분 배정')).toBeInTheDocument()
+  expect(screen.getByRole('heading', { name: '접이식 테이블 3개' })).toBeInTheDocument()
+  const alternative = screen.getByRole('button', { name: '접이식 테이블 대안 선택' })
+  await user.dblClick(alternative)
+  expect(alternative).toBeDisabled()
+  await waitFor(() => expect(payloads).toHaveLength(1))
+  expect(payloads[0]).toEqual({ requestId: pickupRequest.id, itemId: originalItem.id, quantity: 3 })
+  releaseHold?.()
+  expect(await screen.findByText('5개 중 5개 확보 · 배정 성공')).toBeInTheDocument()
+  expect(screen.getByRole('region', { name: '배정 제안' })).toBe(proposal)
+  expect(screen.getByRole('button', { name: '배정 제안 받기' })).toBeDisabled()
+  expect(screen.queryByRole('button', { name: '접이식 테이블 대안 선택' })).not.toBeInTheDocument()
+  expect(allocations).toBe(1)
+  expect(payloads).toHaveLength(1)
+  expect(window.location.href).toBe(locationBefore)
+  expect(pushState).not.toHaveBeenCalled()
+  expect(replaceState).not.toHaveBeenCalled()
+})
+
 test('retains the key after an uncertain network failure and blocks duplicate allocation clicks', async () => {
   const keys: string[] = []
   let release: (() => void) | undefined
