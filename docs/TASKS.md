@@ -31,11 +31,11 @@ The unit of work is a GitHub issue. Owners: **DY** = namdongyeob, **WJ** = WookJ
 | #9 | Allocation agent (function calling, server validation, alternatives) + allocation board | WJ | BE+AI+FE |
 | #10 | Handover recount + reuse stats + screens | WJ | BE+AI+FE |
 
-- [x] #3 · [x] #4 · [x] #5 · [ ] #6 · [x] #7 · [x] #8 · [ ] #9 · [ ] #10
+- [x] #3 · [x] #4 · [x] #5 · [x] #6 · [x] #7 · [x] #8 · [ ] #9 · [ ] #10
 
 #7 merged into main in PR #34 (`c414209`). In `backend/`, `./gradlew spotlessApply compileJava compileTestJava spotlessCheck test --tests '*ReservationIntegrationTest' --tests '*DefaultVehicleHoldIntegrationTest' --tests '*VehicleFitPolicyTest' --tests '*ReservationRulesTest' --tests '*ReservationSchedulerTest' --tests 'com.afterbooth.ArchitectureTest' --tests 'com.afterbooth.CoreSchemaIntegrationTest' --tests '*CoreDomainTest' --tests '*GlobalExceptionHandlerTest' --no-daemon` passed all 74 selected tests, including 32 reservation and two default-configuration PostgreSQL HTTP tests. Cargo defaults and overrides follow D-040; #9/#10 integration boundaries follow D-041/D-039. Frontend, live AI and end-to-end demo were not run.
 
-#8 implements reusable detailed vehicle decisions through `VehicleFitPolicy.checkFit`; HOLD validation uses the same result. D-044 defines rotation diagnostics; D-040 demo cargo defaults remain unchanged. In `backend/`, `./gradlew spotlessApply compileJava compileTestJava spotlessCheck test --tests '*VehicleFitPolicyTest' --tests '*DimensionsTest' --tests 'com.afterbooth.ArchitectureTest' --tests '*CoreDomainTest' --tests '*DefaultVehicleHoldIntegrationTest' --tests '*ReservationIntegrationTest' --no-daemon` passed all 66 selected tests with no failures or skips, including 34 PostgreSQL HOLD/reservation tests. Frontend, the full backend suite, live AI and the end-to-end demo were not run; #9 owns the allocation tool and response mapping.
+#8 implements reusable detailed vehicle decisions through `VehicleFitPolicy.checkFit`; HOLD validation uses the same result. D-050 defines rotation diagnostics; D-040 demo cargo defaults remain unchanged. In `backend/`, `./gradlew spotlessApply compileJava compileTestJava spotlessCheck test --tests '*VehicleFitPolicyTest' --tests '*DimensionsTest' --tests 'com.afterbooth.ArchitectureTest' --tests '*CoreDomainTest' --tests '*DefaultVehicleHoldIntegrationTest' --tests '*ReservationIntegrationTest' --no-daemon` passed all 66 selected tests with no failures or skips, including 34 PostgreSQL HOLD/reservation tests. Frontend, the full backend suite, live AI and the end-to-end demo were not run; #9 owns the allocation tool and response mapping.
 
 Dependency order: #1 → (#3 and #4 in parallel) → #5·#6 (DY) / #7 → #8 → #9 → #10 (WJ)
 

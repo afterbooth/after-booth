@@ -1,0 +1,29 @@
+{
+  "request" : {
+    "method" : "POST",
+    "path" : "/v1/asr/transcribe",
+    "body" : {
+      "request" : {
+        "model" : "muse-voice-transcribe-1.0",
+        "audioEncoding" : "WAV",
+        "mode" : "PUSH_TO_TALK",
+        "languageBias" : [
+          "Korean"
+        ]
+      },
+      "audio" : {
+        "sha256" : "8c79b883580e8652600d9be535179e006def5663f208f253a0e381d24127d380",
+        "bytes" : 160686
+      }
+    }
+  },
+  "response" : {
+    "status" : 200,
+    "body" : {
+      "sessionId" : "voyager/transcribe/57568EDB8D2A4E0D920039B682CE5CBE",
+      "transcript" : "주말 행사에 쓸 진열대 세 개 필요한데 승용차 밖에 없어요.",
+      "audioDurationMs" : 5040,
+      "turns" : [ ]
+    }
+  }
+}
