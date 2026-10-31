@@ -11,8 +11,8 @@ import com.afterbooth.intake.dto.IntakeDraftResponse;
 import com.afterbooth.intake.pipeline.IntakePhoto;
 import com.afterbooth.intake.repository.IntakeDraftLineRepository;
 import com.afterbooth.intake.repository.IntakeDraftRepository;
-import com.afterbooth.inventory.dto.IntakeInventoryItem;
-import com.afterbooth.inventory.service.IntakeInventoryService;
+import com.afterbooth.inventory.dto.ItemResponse;
+import com.afterbooth.inventory.service.ItemService;
 import java.time.Clock;
 import java.util.List;
 import java.util.UUID;
@@ -25,7 +25,7 @@ import tools.jackson.core.type.TypeReference;
 public class IntakeService {
   private final IntakeDraftRepository drafts;
   private final IntakeDraftLineRepository lines;
-  private final IntakeInventoryService inventory;
+  private final ItemService inventory;
   private final IntakeIdempotency idempotency;
   private final ApplicationEventPublisher events;
   private final Clock clock;
@@ -33,7 +33,7 @@ public class IntakeService {
   public IntakeService(
       IntakeDraftRepository drafts,
       IntakeDraftLineRepository lines,
-      IntakeInventoryService inventory,
+      ItemService inventory,
       IntakeIdempotency idempotency,
       ApplicationEventPublisher events,
       Clock clock) {
@@ -74,13 +74,13 @@ public class IntakeService {
         draft.status() == IntakeStatus.PROCESSING ? List.of() : lines.findByDraftIdOrderById(id));
   }
 
-  public List<IntakeInventoryItem> confirm(UUID key, Long id, ConfirmIntakeRequest request) {
+  public List<ItemResponse> confirm(UUID key, Long id, ConfirmIntakeRequest request) {
     String fingerprint = idempotency.fingerprint("/api/intake/drafts/" + id + "/confirm", request);
     return idempotency.execute(
         key,
         fingerprint,
         201,
-        new TypeReference<List<IntakeInventoryItem>>() {},
+        new TypeReference<List<ItemResponse>>() {},
         () -> {
           IntakeDraft draft =
               drafts.findLocked(id).orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND));
@@ -93,7 +93,7 @@ public class IntakeService {
               request.lines().stream()
                   .map(
                       line ->
-                          new IntakeInventoryService.Registration(
+                          new ItemService.Registration(
                               line.category(),
                               line.quantity(),
                               line.sizeCm().dimensions(),

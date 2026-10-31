@@ -8,20 +8,20 @@ import com.afterbooth.inventory.domain.Event;
 import com.afterbooth.inventory.domain.Item;
 import com.afterbooth.inventory.domain.ItemCategory;
 import com.afterbooth.inventory.domain.VehicleType;
-import com.afterbooth.inventory.dto.IntakeInventoryItem;
-import com.afterbooth.inventory.repository.IntakeEventRepository;
-import com.afterbooth.inventory.repository.IntakeInventoryRepository;
+import com.afterbooth.inventory.dto.ItemResponse;
+import com.afterbooth.inventory.repository.EventRepository;
+import com.afterbooth.inventory.repository.ItemRepository;
 import java.time.Instant;
 import java.util.List;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
-public class IntakeInventoryService {
-  private final IntakeInventoryRepository items;
-  private final IntakeEventRepository events;
+public class ItemService {
+  private final ItemRepository items;
+  private final EventRepository events;
 
-  public IntakeInventoryService(IntakeInventoryRepository items, IntakeEventRepository events) {
+  public ItemService(ItemRepository items, EventRepository events) {
     this.items = items;
     this.events = events;
   }
@@ -32,7 +32,7 @@ public class IntakeInventoryService {
   }
 
   @Transactional
-  public List<IntakeInventoryItem> register(
+  public List<ItemResponse> register(
       Long eventId,
       Long draftId,
       List<Registration> lines,
@@ -44,7 +44,7 @@ public class IntakeInventoryService {
     return lines.stream()
         .map(
             line ->
-                IntakeInventoryItem.from(
+                ItemResponse.from(
                     items.save(
                         Item.register(
                             eventId,

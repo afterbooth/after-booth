@@ -7,7 +7,7 @@ import com.afterbooth.inventory.domain.VehicleType;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
 
-public record IntakeInventoryItem(
+public record ItemResponse(
     Long id,
     Long eventId,
     Long organizationId,
@@ -22,8 +22,8 @@ public record IntakeInventoryItem(
     String conditionsTranscript) {
   public record Size(int width, int depth, int height) {}
 
-  public static IntakeInventoryItem from(Item i) {
-    return new IntakeInventoryItem(
+  public static ItemResponse from(Item i) {
+    return new ItemResponse(
         i.id(),
         i.eventId(),
         i.organizationId(),

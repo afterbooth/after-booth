@@ -22,7 +22,7 @@ import com.afterbooth.intake.repository.IntakeIdempotencyRepository;
 import com.afterbooth.inventory.domain.Condition;
 import com.afterbooth.inventory.domain.ItemCategory;
 import com.afterbooth.inventory.domain.VehicleType;
-import com.afterbooth.inventory.dto.IntakeInventoryItem;
+import com.afterbooth.inventory.dto.ItemResponse;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
 import java.math.BigDecimal;
@@ -124,7 +124,7 @@ class IntakeIntegrationTest {
     Long lineId = lines.findByDraftIdOrderById(draft.id()).getFirst().id();
     UUID key = UUID.randomUUID();
     var request = request(lineId, 3);
-    List<IntakeInventoryItem> first = service.confirm(key, draft.id(), request);
+    List<ItemResponse> first = service.confirm(key, draft.id(), request);
     assertThat(first).hasSize(1);
     var item = first.getFirst();
     assertThat(item.category()).isEqualTo(ItemCategory.STORAGE_BIN);

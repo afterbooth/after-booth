@@ -3,7 +3,7 @@ package com.afterbooth.intake.controller;
 import com.afterbooth.intake.dto.ConfirmIntakeRequest;
 import com.afterbooth.intake.dto.IntakeDraftResponse;
 import com.afterbooth.intake.service.IntakeService;
-import com.afterbooth.inventory.dto.IntakeInventoryItem;
+import com.afterbooth.inventory.dto.ItemResponse;
 import jakarta.validation.Valid;
 import java.io.IOException;
 import java.util.List;
@@ -48,7 +48,7 @@ class IntakeController {
 
   @PostMapping("/{draftId}/confirm")
   @ResponseStatus(HttpStatus.CREATED)
-  List<IntakeInventoryItem> confirm(
+  List<ItemResponse> confirm(
       @RequestHeader("Idempotency-Key") UUID key,
       @PathVariable Long draftId,
       @Valid @RequestBody ConfirmIntakeRequest request) {
