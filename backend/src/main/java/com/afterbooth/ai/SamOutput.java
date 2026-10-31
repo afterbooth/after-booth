@@ -10,39 +10,66 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 /**
- * Parses SAM 3.1's special-token text, e.g. {@code
- * <0f>1<|box;x1=..;y1=..;x2=..;y2=..;w=..;h=..;c=..|><|mask;x=0;y=0;c=..;data=..|>,2<|box;...}
- * (grammar from dev.meta.ai/docs, checked against every spike/REPORT.md fixture).
+ * Parses SAM 3.1's special-token text. The whole text must be either empty (nothing found) or
+ * {@code <0f>OBJECT(,OBJECT)*} with an optional final newline, where OBJECT is {@code
+ * n<|box;x1=..;y1=..;x2=..;y2=..;w=..;h=..;c=..|><|mask;x=..;y=..;c=..;data=..|>} (grammar from
+ * dev.meta.ai/docs; every spike and replay SAM response has exactly this shape).
  */
 final class SamOutput {
 
+  private static final String PREFIX = "<0f>";
   private static final Pattern OBJECT =
       Pattern.compile("(\\d+)<\\|box;([^|]*)\\|><\\|mask;([^|]*?)data=([^|]*)\\|>");
-  private static final Pattern BOX_TOKEN = Pattern.compile("<\\|box;");
 
   private SamOutput() {}
 
   static List<SamSegment> parse(String text) {
+    if (text.isEmpty()) {
+      return List.of();
+    }
+    if (!text.startsWith(PREFIX)) {
+      throw malformed(text, 0);
+    }
     List<SamSegment> segments = new ArrayList<>();
     Matcher matcher = OBJECT.matcher(text);
-    while (matcher.find()) {
-      Map<String, String> box = fields(matcher.group(2));
-      Map<String, String> mask = fields(matcher.group(3));
-      segments.add(
-          new SamSegment(
-              number(matcher.group(1), "id", Integer::parseInt),
-              new PixelBox(
-                  integer(box, "x1"), integer(box, "y1"), integer(box, "x2"), integer(box, "y2")),
-              number(field(box, "c"), "c", Double::parseDouble),
-              new SamSegment.Mask(integer(mask, "x"), integer(mask, "y"), matcher.group(4))));
+    int position = PREFIX.length();
+    while (true) {
+      matcher.region(position, text.length());
+      if (!matcher.lookingAt()) {
+        throw malformed(text, position);
+      }
+      segments.add(segment(matcher));
+      position = matcher.end();
+      if (!text.startsWith(",", position)) {
+        break;
+      }
+      position++;
     }
-    long objects = BOX_TOKEN.matcher(text).results().count();
-    if (objects != segments.size()) {
-      throw new AiCallException(
-          Capability.SAM,
-          "could parse only " + segments.size() + " of " + objects + " objects in the output");
+    if (position != text.length() && !text.substring(position).equals("\n")) {
+      throw malformed(text, position);
     }
     return segments;
+  }
+
+  private static SamSegment segment(Matcher matcher) {
+    Map<String, String> box = fields(matcher.group(2));
+    Map<String, String> mask = fields(matcher.group(3));
+    return new SamSegment(
+        number(matcher.group(1), "id", Integer::parseInt),
+        new PixelBox(
+            integer(box, "x1"), integer(box, "y1"), integer(box, "x2"), integer(box, "y2")),
+        number(field(box, "c"), "c", Double::parseDouble),
+        new SamSegment.Mask(integer(mask, "x"), integer(mask, "y"), matcher.group(4)));
+  }
+
+  private static AiCallException malformed(String text, int position) {
+    String rest = text.substring(position);
+    return new AiCallException(
+        Capability.SAM,
+        "output is not SAM segmentation text at character "
+            + position
+            + ": "
+            + (rest.length() > 40 ? rest.substring(0, 40) + "..." : rest));
   }
 
   private static Map<String, String> fields(String group) {
