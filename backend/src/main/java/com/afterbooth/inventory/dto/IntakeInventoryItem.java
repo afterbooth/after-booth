@@ -1,0 +1,40 @@
+package com.afterbooth.inventory.dto;
+
+import com.afterbooth.inventory.domain.Condition;
+import com.afterbooth.inventory.domain.Item;
+import com.afterbooth.inventory.domain.ItemCategory;
+import com.afterbooth.inventory.domain.VehicleType;
+import java.time.OffsetDateTime;
+import java.time.ZoneId;
+
+public record IntakeInventoryItem(
+    Long id,
+    Long eventId,
+    Long organizationId,
+    ItemCategory category,
+    String label,
+    Size sizeCm,
+    Condition condition,
+    int totalQty,
+    int availableQty,
+    OffsetDateTime pickupDeadline,
+    VehicleType vehicleRequirement,
+    String conditionsTranscript) {
+  public record Size(int width, int depth, int height) {}
+
+  public static IntakeInventoryItem from(Item i) {
+    return new IntakeInventoryItem(
+        i.id(),
+        i.eventId(),
+        i.organizationId(),
+        i.category(),
+        i.label(),
+        new Size(i.dimensions().widthCm(), i.dimensions().depthCm(), i.dimensions().heightCm()),
+        i.condition(),
+        i.totalQty(),
+        i.availableQty(),
+        i.pickupDeadline().atZone(ZoneId.of("Asia/Seoul")).toOffsetDateTime(),
+        i.vehicleRequirement(),
+        i.conditionsTranscript());
+  }
+}

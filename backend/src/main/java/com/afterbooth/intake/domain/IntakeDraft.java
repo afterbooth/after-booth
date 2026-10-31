@@ -50,6 +50,40 @@ public class IntakeDraft {
     return new IntakeDraft(eventId, createdAt);
   }
 
+  public void beginSegmentation() {
+    requireProcessing();
+    if (stage != IntakeStage.ESTIMATE) throw new IntakeException(IntakeError.DRAFT_NOT_READY);
+    stage = IntakeStage.SEGMENT;
+  }
+
+  public void ready() {
+    requireProcessing();
+    status = IntakeStatus.READY;
+    stage = null;
+  }
+
+  public void fail(String message) {
+    requireProcessing();
+    failureMessage = Objects.requireNonNull(message);
+    status = IntakeStatus.FAILED;
+  }
+
+  public void confirm(java.util.List<Long> selectedIds, java.util.List<Long> ownIds) {
+    if (status == IntakeStatus.CONFIRMED)
+      throw new IntakeException(IntakeError.DRAFT_ALREADY_CONFIRMED);
+    if (status != IntakeStatus.READY) throw new IntakeException(IntakeError.DRAFT_NOT_READY);
+    if (selectedIds.isEmpty()
+        || selectedIds.size() != new java.util.HashSet<>(selectedIds).size()
+        || !ownIds.containsAll(selectedIds))
+      throw new com.afterbooth.global.error.BusinessException(
+          com.afterbooth.global.error.ErrorCode.INVALID_INPUT);
+    status = IntakeStatus.CONFIRMED;
+  }
+
+  private void requireProcessing() {
+    if (status != IntakeStatus.PROCESSING) throw new IntakeException(IntakeError.DRAFT_NOT_READY);
+  }
+
   public Long id() {
     return id;
   }
