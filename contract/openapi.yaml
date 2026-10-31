@@ -566,9 +566,11 @@ paths:
       summary: A person settles a count mismatch and completes the handover
       description: |
         Only after a photo count: the reservation must be CONFIRMED and its newest `handover_log` row must be
-        MISMATCH, otherwise 409 INVALID_TRANSITION. A handover can never complete without a photo recount whose
-        Muse Spark and SAM 3.1 calls both completed; that `handover_log` row is the evidence. A MISMATCH caused by
-        SAM segmenting fewer boxes than Spark counted (even none) may be settled here like any other mismatch.
+        MISMATCH, otherwise 409 INVALID_TRANSITION. A handover can never complete without a completed photo recount:
+        the Muse Spark call completed, and the SAM 3.1 call completed whenever Spark counted at least one item (a
+        zero count skips SAM). That `handover_log` row is the evidence. Every MISMATCH may be settled here,
+        including SAM segmenting fewer boxes than Spark counted (even none) and a Spark count of zero; the person
+        may accept any quantity up to the reserved one, or retake the photo instead.
         `acceptedQty` greater than the reserved quantity fails with 400 INVALID_INPUT.
 
         In one transaction: the newest MISMATCH log row gets `accepted_qty`, the reservation becomes HANDED_OVER
