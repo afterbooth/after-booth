@@ -1,0 +1,297 @@
+import { cleanup, render, screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { http, HttpResponse } from 'msw'
+import { setupServer } from 'msw/node'
+import { afterAll, afterEach, beforeAll, expect, test, vi } from 'vitest'
+import type { AllocationResult, Item, PickupRequest, Reservation } from '../../api/generated/model'
+import { AllocationProposal } from './AllocationProposal'
+import { AllocationBoard } from './AllocationBoard'
+import { countdown } from './countdown'
+
+const request: PickupRequest = {
+  id: 1,
+  organizationId: 2,
+  category: 'DISPLAY_RACK',
+  quantity: 3,
+  vehicleType: 'SEDAN',
+  createdAt: '2026-11-01T10:00:00+09:00',
+}
+const item: Item = {
+  id: 7,
+  eventId: 1,
+  organizationId: 1,
+  category: 'FOLDING_TABLE',
+  label: '접이식 테이블',
+  sizeCm: { width: 60, depth: 40, height: 10 },
+  condition: 'GOOD',
+  totalQty: 3,
+  availableQty: 3,
+  pickupDeadline: '2026-11-02T18:00:00+09:00',
+}
+const reservation: Reservation = {
+  id: 9,
+  requestId: 1,
+  organizationId: 2,
+  itemId: 7,
+  itemLabel: item.label,
+  quantity: 1,
+  status: 'HELD',
+  holdExpiresAt: '2026-11-02T17:00:00+09:00',
+  pickupDeadline: item.pickupDeadline,
+  createdAt: request.createdAt,
+}
+const result: AllocationResult = {
+  requestId: 1,
+  status: 'NO_MATCH',
+  explanation: '진열대는 승용차에 실을 수 없어요.',
+  reservations: [],
+  rejections: [{ itemId: 3, code: 'VEHICLE_TOO_SMALL', message: '차량 높이가 부족해요.' }],
+  alternatives: [{ item, quantity: 3, reason: '접으면 승용차에 실을 수 있어요.' }],
+  toolCalls: [
+    {
+      name: 'checkVehicleFit',
+      arguments: { itemId: 3 },
+      outcome: 'REJECTED',
+      code: 'VEHICLE_TOO_SMALL',
+      summary: '차량 크기를 확인했어요.',
+    },
+  ],
+}
+const server = setupServer(
+  http.get('*/api/reservations', () => HttpResponse.json([])),
+  http.get('*/api/items', () => HttpResponse.json([])),
+)
+beforeAll(() => server.listen())
+afterEach(() => {
+  cleanup()
+  server.resetHandlers()
+  vi.useRealTimers()
+  vi.restoreAllMocks()
+})
+afterAll(() => server.close())
+
+test('shows no match reasons and holds a human-selected alternative with one key', async () => {
+  let holds = 0
+  let sent: unknown
+  server.use(
+    http.post('*/api/pickup-requests/1/allocation', () => HttpResponse.json(result)),
+    http.post('*/api/reservations', async ({ request: incoming }) => {
+      holds++
+      sent = await incoming.json()
+      expect(incoming.headers.get('Idempotency-Key')).toMatch(/^[a-f0-9-]{36}$/)
+      return HttpResponse.json({ ...reservation, quantity: 3 }, { status: 201 })
+    }),
+  )
+  render(<AllocationProposal request={request} />)
+  const user = userEvent.setup()
+  await waitFor(() => expect(screen.getByRole('button', { name: '배정 제안 받기' })).toBeEnabled())
+  await user.click(screen.getByRole('button', { name: '배정 제안 받기' }))
+  expect(await screen.findByText(result.explanation)).toBeInTheDocument()
+  expect(screen.getByText('물품 #3: 차량 높이가 부족해요.')).toBeInTheDocument()
+  await user.dblClick(screen.getByRole('button', { name: '접이식 테이블 대안 선택' }))
+  expect(await screen.findByText('3개 중 3개 확보 · 배정 성공')).toBeInTheDocument()
+  expect(holds).toBe(1)
+  expect(sent).toEqual({ requestId: 1, itemId: 7, quantity: 3 })
+})
+
+test('shows partial holds and caps alternative quantity to the remaining request quantity', async () => {
+  server.use(
+    http.post('*/api/pickup-requests/1/allocation', () =>
+      HttpResponse.json({ ...result, status: 'HELD', reservations: [reservation] }),
+    ),
+  )
+  render(<AllocationProposal request={request} />)
+  await waitFor(() => expect(screen.getByRole('button', { name: '배정 제안 받기' })).toBeEnabled())
+  await userEvent.click(screen.getByRole('button', { name: '배정 제안 받기' }))
+  expect(await screen.findByText('3개 중 1개 확보 · 부분 배정')).toBeInTheDocument()
+  expect(screen.getByRole('heading', { name: '접이식 테이블 2개' })).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: '배정 제안 받기' })).toBeDisabled()
+})
+
+test('retains the key after an uncertain network failure and blocks duplicate allocation clicks', async () => {
+  const keys: string[] = []
+  let release: (() => void) | undefined
+  server.use(
+    http.post('*/api/pickup-requests/1/allocation', async ({ request: incoming }) => {
+      keys.push(incoming.headers.get('Idempotency-Key')!)
+      if (keys.length === 1) {
+        await new Promise<void>((resolve) => {
+          release = resolve
+        })
+        return HttpResponse.error()
+      }
+      return HttpResponse.json(result)
+    }),
+  )
+  render(<AllocationProposal request={request} />)
+  const user = userEvent.setup()
+  await waitFor(() => expect(screen.getByRole('button', { name: '배정 제안 받기' })).toBeEnabled())
+  await user.dblClick(screen.getByRole('button', { name: '배정 제안 받기' }))
+  expect(keys).toHaveLength(1)
+  expect(screen.getByRole('button', { name: '배정 확인 중…' })).toBeDisabled()
+  release?.()
+  expect(await screen.findByRole('alert')).toHaveTextContent('같은 작업을 다시 시도')
+  await user.click(screen.getByRole('button', { name: '배정 제안 받기' }))
+  await screen.findByText(result.explanation)
+  expect(keys).toHaveLength(2)
+  expect(keys[1]).toBe(keys[0])
+})
+
+test('recovers an existing hold after an already-held response without another allocation', async () => {
+  let reads = 0
+  server.use(
+    http.get('*/api/reservations', () => HttpResponse.json(++reads === 1 ? [] : [reservation])),
+    http.get('*/api/items', () => HttpResponse.json([item])),
+    http.post('*/api/pickup-requests/1/allocation', () =>
+      HttpResponse.json(
+        { code: 'REQUEST_ALREADY_HELD', message: '이미 확보된 물품이 있어요.' },
+        { status: 409 },
+      ),
+    ),
+  )
+  render(<AllocationProposal request={request} />)
+  await waitFor(() => expect(screen.getByRole('button', { name: '배정 제안 받기' })).toBeEnabled())
+  await userEvent.click(screen.getByRole('button', { name: '배정 제안 받기' }))
+  expect(await screen.findByText('3개 중 1개 확보 · 부분 배정')).toBeInTheDocument()
+  expect(screen.getByRole('alert')).toHaveTextContent('이미 확보된 물품')
+  expect(await screen.findByRole('button', { name: '접이식 테이블 추가 선택' })).toBeEnabled()
+})
+
+test('uses a new key for a new action after a definitive AI unavailable response', async () => {
+  const keys: string[] = []
+  server.use(
+    http.post('*/api/pickup-requests/1/allocation', ({ request: incoming }) => {
+      keys.push(incoming.headers.get('Idempotency-Key')!)
+      return keys.length === 1
+        ? HttpResponse.json(
+            { code: 'AI_UNAVAILABLE', message: '배정을 잠시 사용할 수 없어요.' },
+            { status: 503 },
+          )
+        : HttpResponse.json(result)
+    }),
+  )
+  render(<AllocationProposal request={request} />)
+  await waitFor(() => expect(screen.getByRole('button', { name: '배정 제안 받기' })).toBeEnabled())
+  await userEvent.click(screen.getByRole('button', { name: '배정 제안 받기' }))
+  expect(await screen.findByRole('alert')).toHaveTextContent('배정을 잠시 사용할 수 없어요.')
+  await userEvent.click(screen.getByRole('button', { name: '배정 제안 받기' }))
+  await screen.findByText(result.explanation)
+  expect(keys[1]).not.toBe(keys[0])
+})
+
+test('retries conflicts after one, two and four seconds with the same key then starts a new action', async () => {
+  const keys: string[] = []
+  const timestamps: number[] = []
+  server.use(
+    http.post('*/api/pickup-requests/1/allocation', ({ request: incoming }) => {
+      keys.push(incoming.headers.get('Idempotency-Key')!)
+      timestamps.push(Date.now())
+      return keys.length <= 4
+        ? HttpResponse.json(
+            { code: 'IDEMPOTENCY_CONFLICT', message: '같은 요청을 처리 중이에요.' },
+            { status: 409 },
+          )
+        : HttpResponse.json(result)
+    }),
+  )
+  render(<AllocationProposal request={request} />)
+  await waitFor(() => expect(screen.getByRole('button', { name: '배정 제안 받기' })).toBeEnabled())
+  await userEvent.click(screen.getByRole('button', { name: '배정 제안 받기' }))
+  expect(await screen.findByRole('alert', {}, { timeout: 8500 })).toHaveTextContent(
+    '같은 요청을 처리 중이에요.',
+  )
+  expect(keys).toHaveLength(4)
+  expect(new Set(keys).size).toBe(1)
+  expect(timestamps[1] - timestamps[0]).toBeGreaterThanOrEqual(950)
+  expect(timestamps[2] - timestamps[1]).toBeGreaterThanOrEqual(1950)
+  expect(timestamps[3] - timestamps[2]).toBeGreaterThanOrEqual(3950)
+  await userEvent.click(screen.getByRole('button', { name: '배정 제안 받기' }))
+  await screen.findByText(result.explanation)
+  expect(keys[4]).not.toBe(keys[0])
+}, 10000)
+
+test('polls stock and concurrent reservation results, displays Seoul time and cleans up timers', async () => {
+  let reads = 0
+  const clearIntervalSpy = vi.spyOn(globalThis, 'clearInterval')
+  server.use(
+    http.get('*/api/items', () =>
+      HttpResponse.json([{ ...item, availableQty: ++reads === 1 ? 1 : 0 }]),
+    ),
+    http.get('*/api/reservations', () => HttpResponse.json([{ ...reservation, requestId: 42 }])),
+  )
+  const view = render(<AllocationBoard />)
+  expect(await screen.findByText('남은 수량 1개')).toBeInTheDocument()
+  expect(screen.getByText(/요청 #42/)).toBeInTheDocument()
+  expect(screen.getByText(/픽업 마감 11월 2일 18:00/)).toBeInTheDocument()
+  expect(await screen.findByText('남은 수량 0개', {}, { timeout: 4500 })).toBeInTheDocument()
+  const clearsBeforeUnmount = clearIntervalSpy.mock.calls.length
+  view.unmount()
+  expect(clearIntervalSpy.mock.calls.length - clearsBeforeUnmount).toBe(2)
+})
+
+test('clamps expired countdowns and counts seconds before the pickup deadline', () => {
+  expect(countdown(item.pickupDeadline, Date.parse(item.pickupDeadline) - 61000)).toBe(
+    '0시간 1분 1초 남음',
+  )
+  expect(countdown(item.pickupDeadline, Date.parse(item.pickupDeadline) + 1000)).toBe('픽업 마감')
+})
+
+test('recovers a partial hold after reload and tops up from current stock with the remaining quantity', async () => {
+  let payload: unknown
+  server.use(
+    http.get('*/api/reservations', () => HttpResponse.json([reservation])),
+    http.get('*/api/items', ({ request: incoming }) => {
+      expect(new URL(incoming.url).searchParams.get('availableOnly')).toBe('true')
+      return HttpResponse.json([item])
+    }),
+    http.post('*/api/reservations', async ({ request: incoming }) => {
+      payload = await incoming.json()
+      return HttpResponse.json({ ...reservation, id: 10, quantity: 2 }, { status: 201 })
+    }),
+  )
+  render(<AllocationProposal request={request} />)
+  expect(await screen.findByText('3개 중 1개 확보 · 부분 배정')).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: '배정 제안 받기' })).toBeDisabled()
+  expect(await screen.findByRole('heading', { name: '접이식 테이블 2개' })).toBeInTheDocument()
+  expect(
+    screen.getByText('선택하면 서버가 차량 크기와 픽업 마감, 남은 수량을 다시 확인해요.'),
+  ).toBeInTheDocument()
+  await userEvent.click(screen.getByRole('button', { name: '접이식 테이블 추가 선택' }))
+  expect(await screen.findByText('3개 중 3개 확보 · 배정 성공')).toBeInTheDocument()
+  expect(payload).toEqual({ requestId: 1, itemId: 7, quantity: 2 })
+})
+
+test('clears a transient reservation polling error when the next refresh succeeds', async () => {
+  let reads = 0
+  server.use(
+    http.get('*/api/reservations', () =>
+      ++reads === 1 ? HttpResponse.error() : HttpResponse.json([reservation]),
+    ),
+  )
+  render(<AllocationProposal request={request} />)
+  expect(await screen.findByRole('alert')).toHaveTextContent('예약 현황을 불러오지 못했어요.')
+  await screen.findByText('3개 중 1개 확보 · 부분 배정', {}, { timeout: 4500 })
+  expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+})
+
+test('keeps an actionable allocation error visible across successful reservation refreshes', async () => {
+  let reads = 0
+  server.use(
+    http.get('*/api/reservations', () => {
+      reads++
+      return HttpResponse.json([])
+    }),
+    http.post('*/api/pickup-requests/1/allocation', () =>
+      HttpResponse.json(
+        { code: 'AI_UNAVAILABLE', message: '배정을 잠시 사용할 수 없어요.' },
+        { status: 503 },
+      ),
+    ),
+  )
+  render(<AllocationProposal request={request} />)
+  await waitFor(() => expect(screen.getByRole('button', { name: '배정 제안 받기' })).toBeEnabled())
+  await userEvent.click(screen.getByRole('button', { name: '배정 제안 받기' }))
+  expect(await screen.findByRole('alert')).toHaveTextContent('배정을 잠시 사용할 수 없어요.')
+  await waitFor(() => expect(reads).toBeGreaterThanOrEqual(2), { timeout: 4500 })
+  expect(screen.getByRole('alert')).toHaveTextContent('배정을 잠시 사용할 수 없어요.')
+})
