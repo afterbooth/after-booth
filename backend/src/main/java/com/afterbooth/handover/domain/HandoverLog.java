@@ -87,6 +87,23 @@ public class HandoverLog {
         reservationId, expectedQty, countedQty, acceptedQty, status, boxes, createdAt);
   }
 
+  public int requireMatched(int reservedQuantity) {
+    if (status != HandoverStatus.COMPLETED
+        || expectedQty != reservedQuantity
+        || countedQty != reservedQuantity
+        || acceptedQty == null
+        || acceptedQty != reservedQuantity)
+      throw new BusinessException(ErrorCode.INVALID_TRANSITION);
+    return acceptedQty;
+  }
+
+  public void resolve(int acceptedQuantity, int reservedQuantity) {
+    if (status != HandoverStatus.MISMATCH || acceptedQty != null || expectedQty != reservedQuantity)
+      throw new BusinessException(ErrorCode.INVALID_TRANSITION);
+    if (acceptedQuantity <= 0 || acceptedQuantity > reservedQuantity) invalid();
+    acceptedQty = acceptedQuantity;
+  }
+
   private static void invalid() {
     throw new BusinessException(ErrorCode.INVALID_INPUT);
   }
