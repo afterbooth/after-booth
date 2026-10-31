@@ -20,12 +20,12 @@ A surplus equipment hand-off service for events. Equipment left over after festi
 ## Features
 
 ### 1. Photo intake (giver)
-- Booth photo → **SAM 3.1** segments items one by one and counts them
-- **Muse Spark** estimates category, approximate size (cm) and condition from each crop, with a confidence score
-- An inventory draft is created → a person reviews, edits and confirms. Low-confidence items are marked "needs review"
+- Booth photo → **Muse Spark** finds each item and returns its category, a box, the count per category, approximate size (cm) and condition, with a confidence score
+- **SAM 3.1** segments every item from Spark's boxes (box prompts), giving the masks and tight boxes for the overlay. Optionally, a SAM count per category from a noun phrase cross-checks Spark's count
+- An inventory draft is created → a person reviews, edits and confirms. Items with low confidence, a box SAM could not segment, or a SAM count that disagrees with Spark are marked "needs review" (D-029)
 
 ### 2. Spoken conditions
-- "Teardown by 8, need a van" → **Voice Transcribe** → **Spark** structures it against a JSON schema (`pickupDeadline`, `vehicleType`, `quantity`, `purpose`)
+- "Teardown by 8, need a van" → recorded in the browser as 16 kHz mono WAV, up to 60 s (D-030) → **Voice Transcribe** → **Spark** structures it against a JSON schema (`pickupDeadline`, `vehicleType`, `quantity`, `purpose`)
 - Returns both the raw transcript and the interpretation
 
 ### 3. Pickup request (receiver)
@@ -37,7 +37,7 @@ A surplus equipment hand-off service for events. Equipment left over after festi
   - e.g. "높이 180cm라 승용차 불가, 대신 접이식 테이블 3개 어떠세요?" ("180 cm tall, will not fit a sedan. How about 3 folding tables instead?")
 
 ### 5. Handover confirmation
-- One photo at pickup → SAM counts again → compared with the reserved quantity to complete the handover and record the reused quantity
+- One photo at pickup → Spark counts the reserved category and SAM 3.1 segments each counted item from Spark's boxes → the count matches only if it equals the reserved quantity and SAM segmented every box; then the handover completes and the reused quantity is recorded, otherwise it is a mismatch for a person to settle (D-032)
 
 ## Domain
 
@@ -65,7 +65,7 @@ A surplus equipment hand-off service for events. Equipment left over after festi
 ## Screens (Korean UI, mobile first)
 
 1. **Capture and register**: capture with `<input capture>`, box overlay for each detected item, count per category, edit then confirm
-2. **Pickup request**: record with MediaRecorder, interpreted condition card, allocation proposal with "why it does not fit + alternative"
+2. **Pickup request**: record 16 kHz mono PCM with Web Audio (AudioWorklet) and encode the WAV in the browser (D-030), interpreted condition card, allocation proposal with "why it does not fit + alternative"
 3. **Allocation board**: teardown deadline countdown, live remaining quantity (polling), concurrent request results
 
 ## Demo scenario
