@@ -1,5 +1,6 @@
 package com.afterbooth.allocation.service;
 
+import com.afterbooth.allocation.domain.AgentHoldRejection;
 import com.afterbooth.allocation.domain.Reservation;
 import com.afterbooth.allocation.domain.ReservationStatus;
 import com.afterbooth.allocation.domain.ReservationTransition;
@@ -48,8 +49,6 @@ public class ReservationService {
     this.vehicles = vehicles;
     this.clock = clock;
     this.ttl = ttl;
-    if (ttl.isZero() || ttl.isNegative())
-      throw new IllegalArgumentException("Hold TTL must be positive");
   }
 
   @Transactional
@@ -70,11 +69,10 @@ public class ReservationService {
     Instant now = clock.instant();
     if (item.isPickupClosed(now)) throw new BusinessException(ErrorCode.PICKUP_CLOSED);
     vehicles.requireFit(item, request.vehicleType());
-    if (actor == TransitionActor.AGENT) request.requireCategory(item.category());
+    if (actor == TransitionActor.AGENT)
+      AgentHoldRejection.requireCategory(request.category(), item.category());
     request.requireCapacity(reservations.activeQuantity(request.id()), input.quantity());
     items.decrease(item.id(), input.quantity());
-    Instant expires = now.plus(ttl);
-    if (expires.isAfter(item.pickupDeadline())) expires = item.pickupDeadline();
     Reservation reservation =
         reservations.saveAndFlush(
             Reservation.hold(
@@ -82,7 +80,7 @@ public class ReservationService {
                 item.id(),
                 request.organizationId(),
                 input.quantity(),
-                expires,
+                ttl,
                 item.pickupDeadline(),
                 now));
     transitions.save(ReservationTransition.initialHold(reservation.id(), actor, now));
@@ -96,10 +94,8 @@ public class ReservationService {
 
   @Transactional(readOnly = true)
   public List<ReservationResponse> list(Long requestId, Long eventId) {
-    return reservations.findAll().stream()
-        .filter(r -> requestId == null || r.requestId().equals(requestId))
-        .filter(r -> eventId == null || items.get(r.itemId()).eventId().equals(eventId))
-        .map(r -> response(r, false))
+    return reservations.listWithLabel(requestId, eventId).stream()
+        .map(row -> ReservationResponse.from(row.reservation(), row.itemLabel(), null))
         .toList();
   }
 
@@ -107,34 +103,18 @@ public class ReservationService {
   public Confirmation confirm(Long id) {
     Reservation reservation = find(id);
     Instant now = clock.instant();
-    if (reservation.status() == ReservationStatus.HELD
-        && !now.isBefore(reservation.holdExpiresAt())) {
-      if (apply(reservation, ReservationStatus.EXPIRED, TransitionActor.SCHEDULER, now)) {
-        return new Confirmation(null, ErrorCode.HOLD_EXPIRED);
-      }
-      return new Confirmation(
-          null,
-          find(id).status() == ReservationStatus.EXPIRED
-              ? ErrorCode.HOLD_EXPIRED
-              : ErrorCode.INVALID_TRANSITION);
-    }
-    if (reservation.status() == ReservationStatus.EXPIRED)
-      return new Confirmation(null, ErrorCode.HOLD_EXPIRED);
-    ReservationStatus next = reservation.confirm(now);
-    if (!apply(reservation, next, TransitionActor.USER, now)) {
-      Reservation current = find(id);
-      return new Confirmation(
-          null,
-          current.status() == ReservationStatus.EXPIRED
-              ? ErrorCode.HOLD_EXPIRED
-              : ErrorCode.INVALID_TRANSITION);
-    }
+    Reservation.ConfirmationDecision decision = reservation.confirmationAt(now);
+    if (decision.next() == null) return new Confirmation(null, decision.error());
+    if (!apply(reservation, decision.next(), decision.actor(), now))
+      return new Confirmation(null, find(id).confirmationConflict());
+    if (decision.error() != null) return new Confirmation(null, decision.error());
     return new Confirmation(response(find(id), false), null);
   }
 
   @Transactional
   public ReservationResponse cancel(Long id) {
-    Reservation r = find(id);
+    Reservation r =
+        reservations.lock(id).orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND));
     if (!apply(r, r.cancel(), TransitionActor.USER, clock.instant()))
       throw new BusinessException(ErrorCode.INVALID_TRANSITION);
     return response(find(id), false);

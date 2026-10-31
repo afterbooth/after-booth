@@ -277,7 +277,7 @@ class ReservationIntegrationTest {
   }
 
   @Test
-  void confirmRacingExpiryAtDeadlineHasExactlyOneWinner() throws Exception {
+  void lazyConfirmAndSchedulerExpiryRestoreQuantityExactlyOnceAtDeadline() throws Exception {
     for (int iteration = 0; iteration < 10; iteration++) {
       clock.set(NOW);
       Long item = item(1);
@@ -497,8 +497,13 @@ class ReservationIntegrationTest {
     Long item = item(2);
     Long request = request(2);
     jdbc.update("update item set category='FOLDING_TABLE' where id=?", item);
-    assertThat(attempt(() -> reservations.holdForAgent(new HoldItemRequest(request, item, 1))))
-        .isEqualTo(ErrorCode.INVALID_INPUT);
+    assertThatThrownBy(() -> reservations.holdForAgent(new HoldItemRequest(request, item, 1)))
+        .isInstanceOfSatisfying(
+            com.afterbooth.allocation.domain.AgentHoldRejectedException.class,
+            rejection ->
+                assertThat(rejection.rejection())
+                    .isEqualTo(
+                        com.afterbooth.allocation.domain.AgentHoldRejection.CATEGORY_MISMATCH));
     assertThat(hold(request, item).status().name()).isEqualTo("HELD");
     assertThat(stock(item)).isEqualTo(1);
   }
@@ -886,6 +891,72 @@ class ReservationIntegrationTest {
                   Integer.class,
                   id))
           .isNull();
+    }
+  }
+
+  @Autowired org.springframework.transaction.PlatformTransactionManager transactionManager;
+  @Autowired jakarta.persistence.EntityManagerFactory entityManagerFactory;
+
+  @Test
+  void cancelWaitingBehindConfirmStillReleasesConfirmedReservation() throws Exception {
+    Long item = item(1);
+    Long id = hold(request(1), item).id();
+    var transaction =
+        new org.springframework.transaction.support.TransactionTemplate(transactionManager);
+    try (ExecutorService executor = Executors.newSingleThreadExecutor()) {
+      AtomicReference<Future<ReservationResponse>> cancelled = new AtomicReference<>();
+      transaction.executeWithoutResult(
+          status -> {
+            jdbc.queryForObject("select id from reservation where id=? for update", Long.class, id);
+            cancelled.set(executor.submit(() -> reservations.cancel(id)));
+            long limit = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
+            while (jdbc.queryForObject(
+                    "select count(*) from pg_stat_activity where datname=current_database() and wait_event_type='Lock' and query like '%reservation%' and pid<>pg_backend_pid()",
+                    Integer.class)
+                == 0) {
+              if (System.nanoTime() > limit)
+                throw new AssertionError("Cancellation did not wait for the reservation row lock");
+              jdbc.execute("select pg_stat_clear_snapshot()");
+              Thread.yield();
+            }
+            assertThat(reservations.confirm(id).error()).isNull();
+          });
+      assertThat(cancelled.get().get(30, TimeUnit.SECONDS).status().name()).isEqualTo("RELEASED");
+    }
+    assertThat(stock(item)).isEqualTo(1);
+    assertThat(reservations.get(id).transitions()).hasSize(3);
+  }
+
+  @Test
+  void listFiltersRequestAndEventInOneDatabaseQueryWithoutHistory() {
+    Long firstItem = item(1);
+    Long firstRequest = request(1);
+    hold(firstRequest, firstItem);
+    Long event =
+        jdbc.queryForObject(
+            "insert into event(organization_id,name,venue,teardown_deadline) values(1,'Other event','Seoul',?) returning id",
+            Long.class,
+            java.sql.Timestamp.from(NOW.plusSeconds(3600)));
+    Long secondItem = item(1);
+    jdbc.update("update item set event_id=? where id=?", event, secondItem);
+    Long secondRequest = request(1);
+    hold(secondRequest, secondItem);
+    var stats = entityManagerFactory.unwrap(org.hibernate.SessionFactory.class).getStatistics();
+    stats.setStatisticsEnabled(true);
+    try {
+      stats.clear();
+      var result = reservations.list(firstRequest, 1L);
+      assertThat(result).hasSize(1);
+      assertThat(result.getFirst().itemId()).isEqualTo(firstItem);
+      assertThat(result.getFirst().itemLabel()).isEqualTo("수납함");
+      assertThat(result.getFirst().transitions()).isNull();
+      assertThat(stats.getPrepareStatementCount()).isEqualTo(1);
+      assertThat(reservations.list(firstRequest, event)).isEmpty();
+      assertThat(reservations.list(null, event))
+          .extracting(ReservationResponse::requestId)
+          .containsExactly(secondRequest);
+    } finally {
+      stats.setStatisticsEnabled(false);
     }
   }
 

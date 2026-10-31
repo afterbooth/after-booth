@@ -10,6 +10,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.Objects;
 
@@ -91,11 +92,44 @@ public class Reservation {
         requestId, itemId, organizationId, quantity, holdExpiresAt, pickupDeadline, createdAt);
   }
 
-  public ReservationStatus confirm(Instant now) {
-    if (status == ReservationStatus.EXPIRED) throw new BusinessException(ErrorCode.HOLD_EXPIRED);
+  public static Reservation hold(
+      Long requestId,
+      Long itemId,
+      Long organizationId,
+      int quantity,
+      Duration ttl,
+      Instant pickupDeadline,
+      Instant createdAt) {
+    if (ttl.isZero() || ttl.isNegative())
+      throw new IllegalArgumentException("Hold TTL must be positive");
+    Instant expires = createdAt.plus(ttl);
+    if (expires.isAfter(pickupDeadline)) expires = pickupDeadline;
+    return hold(requestId, itemId, organizationId, quantity, expires, pickupDeadline, createdAt);
+  }
+
+  public ConfirmationDecision confirmationAt(Instant now) {
+    if (status == ReservationStatus.EXPIRED)
+      return new ConfirmationDecision(null, null, ErrorCode.HOLD_EXPIRED);
     require(status == ReservationStatus.HELD);
-    if (!now.isBefore(holdExpiresAt)) throw new BusinessException(ErrorCode.HOLD_EXPIRED);
-    return ReservationStatus.CONFIRMED;
+    if (!now.isBefore(holdExpiresAt))
+      return new ConfirmationDecision(
+          ReservationStatus.EXPIRED, TransitionActor.SCHEDULER, ErrorCode.HOLD_EXPIRED);
+    return new ConfirmationDecision(ReservationStatus.CONFIRMED, TransitionActor.USER, null);
+  }
+
+  public ErrorCode confirmationConflict() {
+    return status == ReservationStatus.EXPIRED
+        ? ErrorCode.HOLD_EXPIRED
+        : ErrorCode.INVALID_TRANSITION;
+  }
+
+  public record ConfirmationDecision(
+      ReservationStatus next, TransitionActor actor, ErrorCode error) {}
+
+  public ReservationStatus confirm(Instant now) {
+    ConfirmationDecision decision = confirmationAt(now);
+    if (decision.error() != null) throw new BusinessException(decision.error());
+    return decision.next();
   }
 
   public ReservationStatus cancel() {

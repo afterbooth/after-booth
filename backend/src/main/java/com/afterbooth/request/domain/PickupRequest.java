@@ -97,10 +97,6 @@ public class PickupRequest {
       throw new BusinessException(ErrorCode.QTY_EXCEEDS_REQUEST);
   }
 
-  public void requireCategory(ItemCategory itemCategory) {
-    if (itemCategory != category) throw new BusinessException(ErrorCode.INVALID_INPUT);
-  }
-
   private static void invalid() {
     throw new BusinessException(ErrorCode.INVALID_INPUT);
   }
