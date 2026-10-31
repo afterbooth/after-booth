@@ -1,9 +1,8 @@
 package com.afterbooth.inventory.service;
 
-import com.afterbooth.global.error.BusinessException;
-import com.afterbooth.global.error.ErrorCode;
 import com.afterbooth.inventory.config.VehicleCargoProperties;
 import com.afterbooth.inventory.domain.Item;
+import com.afterbooth.inventory.domain.VehicleFitResult;
 import com.afterbooth.inventory.domain.VehicleType;
 import org.springframework.stereotype.Component;
 
@@ -15,10 +14,11 @@ public class VehicleFitPolicy {
     this.cargo = cargo;
   }
 
+  public VehicleFitResult checkFit(Item item, VehicleType vehicle) {
+    return item.vehicleFit(vehicle, cargo.dimensionsFor(vehicle));
+  }
+
   public void requireFit(Item item, VehicleType vehicle) {
-    if (!vehicle.canCarry(item.vehicleRequirement())
-        || !item.dimensions().fitsIn(cargo.dimensionsFor(vehicle))) {
-      throw new BusinessException(ErrorCode.VEHICLE_TOO_SMALL);
-    }
+    checkFit(item, vehicle).requireFit();
   }
 }

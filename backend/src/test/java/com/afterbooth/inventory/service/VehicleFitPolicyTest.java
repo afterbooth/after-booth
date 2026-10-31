@@ -11,6 +11,7 @@ import com.afterbooth.inventory.domain.Condition;
 import com.afterbooth.inventory.domain.Dimensions;
 import com.afterbooth.inventory.domain.Item;
 import com.afterbooth.inventory.domain.ItemCategory;
+import com.afterbooth.inventory.domain.VehicleFitResult;
 import com.afterbooth.inventory.domain.VehicleType;
 import java.time.Instant;
 import org.junit.jupiter.api.Test;
@@ -118,6 +119,102 @@ class VehicleFitPolicyTest {
                 }
               }
             });
+  }
+
+  @Test
+  void detailedResultsCoverEveryDefaultBoundaryAndOriginalItemAxis() {
+    applicationContext()
+        .run(
+            context -> {
+              VehicleFitPolicy policy = context.getBean(VehicleFitPolicy.class);
+              VehicleCargoProperties properties = context.getBean(VehicleCargoProperties.class);
+              for (VehicleType vehicle : VehicleType.values()) {
+                Dimensions cargo = properties.dimensionsFor(vehicle);
+                assertThat(policy.checkFit(item(cargo, null), vehicle))
+                    .isEqualTo(new VehicleFitResult(true, null, null));
+                assertSizeRejection(
+                    policy,
+                    vehicle,
+                    new Dimensions(cargo.widthCm() + 1, cargo.depthCm(), cargo.heightCm()),
+                    "width");
+                assertSizeRejection(
+                    policy,
+                    vehicle,
+                    new Dimensions(cargo.widthCm(), cargo.depthCm() + 1, cargo.heightCm()),
+                    "depth");
+                assertSizeRejection(
+                    policy,
+                    vehicle,
+                    new Dimensions(cargo.widthCm(), cargo.depthCm(), cargo.heightCm() + 1),
+                    "height");
+                int maximum =
+                    Math.max(cargo.widthCm(), Math.max(cargo.depthCm(), cargo.heightCm()));
+                assertSizeRejection(policy, vehicle, new Dimensions(maximum + 1, 1, 1), "width");
+                assertSizeRejection(policy, vehicle, new Dimensions(1, maximum + 1, 1), "depth");
+                assertSizeRejection(policy, vehicle, new Dimensions(1, 1, maximum + 1), "height");
+                assertThat(policy.checkFit(item(new Dimensions(1, 1, 1), null), vehicle).fit())
+                    .isTrue();
+              }
+            });
+  }
+
+  @Test
+  void detailedResultsRequireBothMinimumVehicleAndDimensions() {
+    applicationContext()
+        .run(
+            context -> {
+              VehicleFitPolicy policy = context.getBean(VehicleFitPolicy.class);
+              VehicleType[] vehicles = VehicleType.values();
+              assertThat(vehicles)
+                  .containsExactly(
+                      VehicleType.SEDAN, VehicleType.SUV, VehicleType.VAN, VehicleType.TRUCK_1T);
+              for (int required = 0; required < vehicles.length; required++) {
+                for (int actual = 0; actual < vehicles.length; actual++) {
+                  VehicleFitResult result =
+                      policy.checkFit(
+                          item(new Dimensions(1, 1, 1), vehicles[required]), vehicles[actual]);
+                  assertThat(result)
+                      .isEqualTo(
+                          actual >= required
+                              ? new VehicleFitResult(true, null, null)
+                              : new VehicleFitResult(false, ErrorCode.VEHICLE_TOO_SMALL, null));
+                }
+              }
+              assertThat(
+                      policy.checkFit(
+                          item(new Dimensions(121, 1, 1), VehicleType.SEDAN), VehicleType.SEDAN))
+                  .isEqualTo(new VehicleFitResult(false, ErrorCode.VEHICLE_TOO_SMALL, "width"));
+              assertThat(
+                      policy.checkFit(
+                          item(new Dimensions(121, 1, 1), VehicleType.TRUCK_1T), VehicleType.SEDAN))
+                  .isEqualTo(new VehicleFitResult(false, ErrorCode.VEHICLE_TOO_SMALL, "width"));
+            });
+  }
+
+  @Test
+  void detailedResultsUseConfiguredCargoOverrides() {
+    applicationContext()
+        .withPropertyValues("afterbooth.vehicle-cargo.sedan.width-cm=121")
+        .run(
+            context -> {
+              VehicleFitPolicy policy = context.getBean(VehicleFitPolicy.class);
+              assertThat(
+                      policy
+                          .checkFit(item(new Dimensions(121, 80, 60), null), VehicleType.SEDAN)
+                          .fit())
+                  .isTrue();
+              assertSizeRejection(policy, VehicleType.SEDAN, new Dimensions(122, 1, 1), "width");
+            });
+  }
+
+  void assertSizeRejection(
+      VehicleFitPolicy policy,
+      VehicleType vehicle,
+      Dimensions dimensions,
+      String limitingDimension) {
+    assertThat(policy.checkFit(item(dimensions, null), vehicle))
+        .isEqualTo(new VehicleFitResult(false, ErrorCode.VEHICLE_TOO_SMALL, limitingDimension));
+    assertVehicleTooSmall(() -> policy.requireFit(item(dimensions, null), vehicle));
   }
 
   @Test
