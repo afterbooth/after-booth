@@ -6,14 +6,18 @@ import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.afterbooth.global.domain.BoundingBox;
 import com.afterbooth.global.error.BusinessException;
 import com.afterbooth.global.error.ErrorCode;
-import com.afterbooth.global.idempotency.IdempotencyRepository;
 import com.afterbooth.intake.domain.DraftCategory;
 import com.afterbooth.intake.domain.IntakeStatus;
 import com.afterbooth.intake.dto.ConfirmIntakeRequest;
+import com.afterbooth.intake.dto.IntakeDraftResponse;
 import com.afterbooth.intake.dto.SizeCm;
 import com.afterbooth.intake.pipeline.EstimatedLine;
 import com.afterbooth.intake.pipeline.IntakePipeline;
@@ -26,7 +30,6 @@ import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
 import java.math.BigDecimal;
 import java.time.Duration;
-import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
@@ -43,18 +46,25 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.mock.web.MockHttpServletResponse;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.web.servlet.MockMvc;
 import org.testcontainers.postgresql.PostgreSQLContainer;
 import org.testcontainers.utility.DockerImageName;
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.json.JsonMapper;
 
 @SpringBootTest(
     webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
     properties = "afterbooth.ai.mode=replay")
 @Import(IntakeIntegrationTest.PostgresConfiguration.class)
+@AutoConfigureMockMvc
 class IntakeIntegrationTest {
   @TestConfiguration(proxyBeanMethods = false)
   static class PostgresConfiguration {
@@ -71,7 +81,8 @@ class IntakeIntegrationTest {
   @Autowired IntakeService service;
   @Autowired IntakeProcessingStore store;
   @Autowired IntakeDraftLineRepository lines;
-  @Autowired IdempotencyRepository records;
+  @Autowired MockMvc mvc;
+  @Autowired JsonMapper json;
   @Autowired JdbcTemplate jdbc;
 
   @MockitoBean(name = "intakeExecutor")
@@ -94,23 +105,28 @@ class IntakeIntegrationTest {
     UUID key = UUID.randomUUID();
     doAnswer(
             invocation -> {
-              assertThat(
-                      jdbc.queryForObject(
-                          "SELECT count(*) FROM intake_draft WHERE event_id=?",
-                          Long.class,
-                          eventId))
-                  .isPositive();
+              try (var connection = jdbc.getDataSource().getConnection();
+                  var statement =
+                      connection.prepareStatement(
+                          "SELECT state FROM idempotency_record WHERE idempotency_key=?")) {
+                statement.setObject(1, key);
+                try (var rows = statement.executeQuery()) {
+                  assertThat(rows.next()).isTrue();
+                  assertThat(rows.getString(1)).isEqualTo("DONE");
+                }
+              }
               return null;
             })
         .when(executor)
         .execute(any(Runnable.class));
-    var first = service.create(key, eventId, photo, "image/png");
+    var first = create(key, eventId, photo, "image/png");
     assertThat(first.status()).isEqualTo(IntakeStatus.PROCESSING);
     ready(first.id());
     assertThat(service.get(first.id()).status()).isEqualTo(IntakeStatus.READY);
-    assertThat(service.create(key, eventId, photo, "image/png")).isEqualTo(first);
+    assertThat(create(key, eventId, photo, "image/png")).isEqualTo(first);
     verify(executor, times(1)).execute(any(Runnable.class));
-    assertThatThrownBy(() -> service.create(key, eventId + 10000, photo, "image/png"))
+    assertThat(create(key, eventId + 10000, photo, "image/jpeg")).isEqualTo(first);
+    assertThatThrownBy(() -> create(key, eventId, new byte[] {1}, "image/png"))
         .isInstanceOf(BusinessException.class)
         .extracting(e -> ((BusinessException) e).errorCode())
         .isEqualTo(ErrorCode.IDEMPOTENCY_CONFLICT);
@@ -118,12 +134,12 @@ class IntakeIntegrationTest {
 
   @Test
   void confirmCreatesEditedItemsAndReplaysStoredArrayWithoutDuplicates() {
-    var draft = service.create(UUID.randomUUID(), eventId, photo, "image/png");
+    var draft = create(UUID.randomUUID(), eventId, photo, "image/png");
     ready(draft.id());
     Long lineId = lines.findByDraftIdOrderById(draft.id()).getFirst().id();
     UUID key = UUID.randomUUID();
     var request = request(lineId, 3);
-    List<ItemResponse> first = service.confirm(key, draft.id(), request);
+    List<ItemResponse> first = confirm(key, draft.id(), request);
     assertThat(first).hasSize(1);
     var item = first.getFirst();
     assertThat(item.category()).isEqualTo(ItemCategory.STORAGE_BIN);
@@ -133,45 +149,72 @@ class IntakeIntegrationTest {
     assertThat(item.pickupDeadline().getOffset()).isEqualTo(ZoneOffset.ofHours(9));
     assertThat(
             jdbc.queryForObject(
-                "SELECT pickup_deadline=e.teardown_deadline FROM item i JOIN event e ON i.event_id=e.id WHERE i.id=?",
+                "SELECT pickup_deadline=e.teardown_deadline FROM item i JOIN event e ON"
+                    + " i.event_id=e.id WHERE i.id=?",
                 Boolean.class,
                 item.id()))
         .isTrue();
-    assertThat(service.confirm(key, draft.id(), request)).isEqualTo(first);
-    assertThat(records.find(key).orElseThrow().body()).startsWith("[");
+    assertThat(confirm(key, draft.id(), request)).isEqualTo(first);
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT response_body::text FROM idempotency_record WHERE idempotency_key=?",
+                String.class,
+                key))
+        .startsWith("[");
     assertThat(
             jdbc.queryForObject(
                 "SELECT count(*) FROM item WHERE intake_draft_id=?", Long.class, draft.id()))
         .isEqualTo(1);
     assertThat(service.get(draft.id()).status()).isEqualTo(IntakeStatus.CONFIRMED);
-    assertThatThrownBy(() -> service.confirm(UUID.randomUUID(), draft.id(), request))
+    assertThatThrownBy(() -> confirm(UUID.randomUUID(), draft.id(), request))
         .isInstanceOf(BusinessException.class)
         .extracting(e -> ((BusinessException) e).errorCode())
         .isEqualTo(ErrorCode.DRAFT_ALREADY_CONFIRMED);
-    assertThatThrownBy(() -> service.confirm(key, draft.id(), request(lineId, 4)))
+    assertThatThrownBy(() -> confirm(key, draft.id(), request(lineId, 4)))
         .isInstanceOf(BusinessException.class)
         .extracting(e -> ((BusinessException) e).errorCode())
         .isEqualTo(ErrorCode.IDEMPOTENCY_CONFLICT);
   }
 
   @Test
+  void confirmRejectsSameKeyWithDifferentRawJsonBytes() throws Exception {
+    var draft = create(UUID.randomUUID(), eventId, photo, "image/png");
+    ready(draft.id());
+    Long line = lines.findByDraftIdOrderById(draft.id()).getFirst().id();
+    UUID key = UUID.randomUUID();
+    var request = request(line, 2);
+    confirm(key, draft.id(), request);
+    mvc.perform(
+            post("/api/intake/drafts/" + draft.id() + "/confirm")
+                .header("Idempotency-Key", key)
+                .contentType("application/json")
+                .content(json.writeValueAsString(request) + " "))
+        .andExpect(status().isConflict())
+        .andExpect(jsonPath("$.code").value("IDEMPOTENCY_CONFLICT"));
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT count(*) FROM item WHERE intake_draft_id=?", Long.class, draft.id()))
+        .isEqualTo(1);
+  }
+
+  @Test
   void confirmationRejectsForeignDuplicateAndLateDeadlineAndRollsBackState() {
-    var draft = service.create(UUID.randomUUID(), eventId, photo, "image/png");
+    var draft = create(UUID.randomUUID(), eventId, photo, "image/png");
     ready(draft.id());
     Long own = lines.findByDraftIdOrderById(draft.id()).getFirst().id();
-    assertThatThrownBy(() -> service.confirm(UUID.randomUUID(), draft.id(), request(-1L, 1)))
+    assertThatThrownBy(() -> confirm(UUID.randomUUID(), draft.id(), request(-1L, 1)))
         .isInstanceOf(BusinessException.class);
     var line = request(own, 1).lines().getFirst();
     assertThatThrownBy(
             () ->
-                service.confirm(
+                confirm(
                     UUID.randomUUID(),
                     draft.id(),
                     new ConfirmIntakeRequest(List.of(line, line), null, null, null)))
         .isInstanceOf(BusinessException.class);
     assertThatThrownBy(
             () ->
-                service.confirm(
+                confirm(
                     UUID.randomUUID(),
                     draft.id(),
                     new ConfirmIntakeRequest(
@@ -189,16 +232,20 @@ class IntakeIntegrationTest {
 
   @Test
   void notReadyMissingEventAndInFlightIdempotencyAreRejected() {
-    var draft = service.create(UUID.randomUUID(), eventId, photo, "image/png");
-    assertThatThrownBy(() -> service.confirm(UUID.randomUUID(), draft.id(), request(1L, 1)))
+    var draft = create(UUID.randomUUID(), eventId, photo, "image/png");
+    assertThatThrownBy(() -> confirm(UUID.randomUUID(), draft.id(), request(1L, 1)))
         .isInstanceOf(BusinessException.class)
         .extracting(e -> ((BusinessException) e).errorCode())
         .isEqualTo(ErrorCode.DRAFT_NOT_READY);
-    assertThatThrownBy(() -> service.create(UUID.randomUUID(), -1L, photo, "image/png"))
+    assertThatThrownBy(() -> create(UUID.randomUUID(), -1L, photo, "image/png"))
         .isInstanceOf(BusinessException.class);
     UUID key = UUID.randomUUID();
-    records.claim(key, "busy", Instant.EPOCH);
-    assertThatThrownBy(() -> service.create(key, eventId, photo, "image/png"))
+    jdbc.update(
+        "INSERT INTO idempotency_record(idempotency_key,fingerprint,state,created_at) VALUES (?, ?,"
+            + " 'IN_PROGRESS', CURRENT_TIMESTAMP)",
+        key,
+        "busy");
+    assertThatThrownBy(() -> create(key, eventId, photo, "image/png"))
         .isInstanceOf(BusinessException.class)
         .extracting(e -> ((BusinessException) e).errorCode())
         .isEqualTo(ErrorCode.IDEMPOTENCY_CONFLICT);
@@ -206,7 +253,7 @@ class IntakeIntegrationTest {
 
   @Test
   void simultaneousDifferentKeyConfirmationsCreateInventoryOnce() throws Exception {
-    var draft = service.create(UUID.randomUUID(), eventId, photo, "image/png");
+    var draft = create(UUID.randomUUID(), eventId, photo, "image/png");
     ready(draft.id());
     Long line = lines.findByDraftIdOrderById(draft.id()).getFirst().id();
     var start = new CountDownLatch(1);
@@ -215,7 +262,7 @@ class IntakeIntegrationTest {
           () -> {
             start.await();
             try {
-              service.confirm(UUID.randomUUID(), draft.id(), request(line, 2));
+              confirm(UUID.randomUUID(), draft.id(), request(line, 2));
               return true;
             } catch (BusinessException e) {
               assertThat(e.errorCode()).isEqualTo(ErrorCode.DRAFT_ALREADY_CONFIRMED);
@@ -236,7 +283,7 @@ class IntakeIntegrationTest {
 
   @Test
   void sameKeyInFlightReturnsConflictBeforeFirstResponseAndDoesNotDuplicate() throws Exception {
-    var draft = service.create(UUID.randomUUID(), eventId, photo, "image/png");
+    var draft = create(UUID.randomUUID(), eventId, photo, "image/png");
     ready(draft.id());
     Long line = lines.findByDraftIdOrderById(draft.id()).getFirst().id();
     UUID key = UUID.randomUUID();
@@ -249,11 +296,11 @@ class IntakeIntegrationTest {
         statement.setLong(1, draft.id());
         statement.executeQuery().close();
       }
-      var first = pool.submit(() -> service.confirm(key, draft.id(), request(line, 2)));
+      var first = pool.submit(() -> confirm(key, draft.id(), request(line, 2)));
       long until = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
-      while (records.find(key).isEmpty() && System.nanoTime() < until) Thread.onSpinWait();
-      assertThat(records.find(key)).isPresent();
-      assertThatThrownBy(() -> service.confirm(key, draft.id(), request(line, 2)))
+      while (claimCount(key) == 0 && System.nanoTime() < until) Thread.onSpinWait();
+      assertThat(claimCount(key)).isEqualTo(1);
+      assertThatThrownBy(() -> confirm(key, draft.id(), request(line, 2)))
           .isInstanceOf(BusinessException.class)
           .extracting(e -> ((BusinessException) e).errorCode())
           .isEqualTo(ErrorCode.IDEMPOTENCY_CONFLICT);
@@ -292,7 +339,9 @@ class IntakeIntegrationTest {
             + eventId
             + "\r\n--"
             + boundary
-            + "\r\nContent-Disposition: form-data; name=\"photo\"; filename=\"photo.png\"\r\nContent-Type: image/png\r\n\r\n";
+            + "\r\n"
+            + "Content-Disposition: form-data; name=\"photo\"; filename=\"photo.png\"\r\n"
+            + "Content-Type: image/png\r\n\r\n";
     var body =
         java.net.http.HttpRequest.BodyPublishers.concat(
             java.net.http.HttpRequest.BodyPublishers.ofString(prefix),
@@ -309,6 +358,58 @@ class IntakeIntegrationTest {
     try (var client = java.net.http.HttpClient.newHttpClient()) {
       return client.send(request, java.net.http.HttpResponse.BodyHandlers.ofString());
     }
+  }
+
+  private IntakeDraftResponse create(UUID key, Long eventId, byte[] photo, String mediaType) {
+    try {
+      var response =
+          mvc.perform(
+                  multipart("/api/intake/drafts")
+                      .file(new MockMultipartFile("photo", "photo.png", mediaType, photo))
+                      .param("eventId", eventId.toString())
+                      .header("Idempotency-Key", key))
+              .andReturn()
+              .getResponse();
+      requireStatus(response, 202);
+      return json.readValue(response.getContentAsString(), IntakeDraftResponse.class);
+    } catch (BusinessException error) {
+      throw error;
+    } catch (Exception error) {
+      throw new AssertionError(error);
+    }
+  }
+
+  private List<ItemResponse> confirm(UUID key, Long id, ConfirmIntakeRequest request) {
+    try {
+      var response =
+          mvc.perform(
+                  post("/api/intake/drafts/" + id + "/confirm")
+                      .header("Idempotency-Key", key)
+                      .contentType("application/json")
+                      .content(json.writeValueAsBytes(request)))
+              .andReturn()
+              .getResponse();
+      requireStatus(response, 201);
+      assertThat(response.getContentAsString()).startsWith("[");
+      return json.readValue(
+          response.getContentAsString(), new TypeReference<List<ItemResponse>>() {});
+    } catch (BusinessException error) {
+      throw error;
+    } catch (Exception error) {
+      throw new AssertionError(error);
+    }
+  }
+
+  private void requireStatus(MockHttpServletResponse response, int successStatus) throws Exception {
+    if (response.getStatus() != successStatus) {
+      throw new BusinessException(
+          ErrorCode.valueOf(json.readTree(response.getContentAsString()).get("code").asText()));
+    }
+  }
+
+  private int claimCount(UUID key) {
+    return jdbc.queryForObject(
+        "SELECT count(*) FROM idempotency_record WHERE idempotency_key=?", Integer.class, key);
   }
 
   private void ready(Long id) {

@@ -59,6 +59,17 @@ public class ReservationTransition {
     return new ReservationTransition(reservationId, actor, at);
   }
 
+  public static ReservationTransition record(
+      Long id, ReservationStatus from, ReservationStatus to, TransitionActor actor, Instant at) {
+    ReservationTransition result = new ReservationTransition();
+    result.reservationId = id;
+    result.fromStatus = from;
+    result.toStatus = to;
+    result.actor = actor;
+    result.at = at;
+    return result;
+  }
+
   private static void invalid() {
     throw new BusinessException(ErrorCode.INVALID_INPUT);
   }

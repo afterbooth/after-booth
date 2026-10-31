@@ -2,7 +2,6 @@ package com.afterbooth.intake.service;
 
 import com.afterbooth.global.error.BusinessException;
 import com.afterbooth.global.error.ErrorCode;
-import com.afterbooth.global.idempotency.IdempotencyService;
 import com.afterbooth.intake.domain.IntakeDraft;
 import com.afterbooth.intake.domain.IntakeDraftLine;
 import com.afterbooth.intake.domain.IntakeStatus;
@@ -16,18 +15,15 @@ import com.afterbooth.inventory.dto.ItemResponse;
 import com.afterbooth.inventory.service.ItemService;
 import java.time.Clock;
 import java.util.List;
-import java.util.UUID;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import tools.jackson.core.type.TypeReference;
 
 @Service
 public class IntakeService {
   private final IntakeDraftRepository drafts;
   private final IntakeDraftLineRepository lines;
   private final ItemService inventory;
-  private final IdempotencyService idempotency;
   private final ApplicationEventPublisher events;
   private final Clock clock;
 
@@ -35,38 +31,25 @@ public class IntakeService {
       IntakeDraftRepository drafts,
       IntakeDraftLineRepository lines,
       ItemService inventory,
-      IdempotencyService idempotency,
       ApplicationEventPublisher events,
       Clock clock) {
     this.drafts = drafts;
     this.lines = lines;
     this.inventory = inventory;
-    this.idempotency = idempotency;
     this.events = events;
     this.clock = clock;
   }
 
-  public IntakeDraftResponse create(UUID key, Long eventId, byte[] bytes, String mediaType) {
+  @Transactional
+  public IntakeDraftResponse create(Long eventId, byte[] bytes, String mediaType) {
     IntakeUpload upload = new IntakeUpload(bytes, mediaType);
-    String fingerprint =
-        idempotency.fingerprint(
-            "POST",
-            "/api/intake/drafts",
-            List.of(eventId, mediaType, IdempotencyService.hash(bytes)));
-    return idempotency.execute(
-        key,
-        fingerprint,
-        202,
-        new TypeReference<IntakeDraftResponse>() {},
-        () -> {
-          inventory.requireEvent(eventId);
-          IntakeDraft draft = drafts.saveAndFlush(IntakeDraft.start(eventId, clock.instant()));
-          IntakeDraftResponse response = IntakeDraftResponse.from(draft, List.of());
-          events.publishEvent(
-              new IntakeProcessor.Submitted(
-                  draft.id(), new IntakePhoto(upload.bytes(), upload.mediaType())));
-          return response;
-        });
+    inventory.requireEvent(eventId);
+    IntakeDraft draft = drafts.saveAndFlush(IntakeDraft.start(eventId, clock.instant()));
+    IntakeDraftResponse response = IntakeDraftResponse.from(draft, List.of());
+    events.publishEvent(
+        new IntakeProcessor.Submitted(
+            draft.id(), new IntakePhoto(upload.bytes(), upload.mediaType())));
+    return response;
   }
 
   @Transactional(readOnly = true)
@@ -77,36 +60,28 @@ public class IntakeService {
         draft.status() == IntakeStatus.PROCESSING ? List.of() : lines.findByDraftIdOrderById(id));
   }
 
-  public List<ItemResponse> confirm(UUID key, Long id, ConfirmIntakeRequest request) {
-    String fingerprint =
-        idempotency.fingerprint("POST", "/api/intake/drafts/" + id + "/confirm", request);
-    return idempotency.execute(
-        key,
-        fingerprint,
-        201,
-        new TypeReference<List<ItemResponse>>() {},
-        () -> {
-          IntakeDraft draft =
-              drafts.findLocked(id).orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND));
-          draft.confirm(
-              request.lines().stream().map(ConfirmIntakeRequest.ConfirmLine::lineId).toList(),
-              lines.findByDraftIdOrderById(id).stream().map(IntakeDraftLine::id).toList());
-          return inventory.register(
-              draft.eventId(),
-              id,
-              request.lines().stream()
-                  .map(
-                      line ->
-                          new ItemService.Registration(
-                              line.category(),
-                              line.quantity(),
-                              line.sizeCm().dimensions(),
-                              line.condition()))
-                  .toList(),
-              request.pickupDeadline() == null ? null : request.pickupDeadline().toInstant(),
-              request.vehicleRequirement(),
-              request.conditionsTranscript());
-        });
+  @Transactional
+  public List<ItemResponse> confirm(Long id, ConfirmIntakeRequest request) {
+    IntakeDraft draft =
+        drafts.findLocked(id).orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND));
+    draft.confirm(
+        request.lines().stream().map(ConfirmIntakeRequest.ConfirmLine::lineId).toList(),
+        lines.findByDraftIdOrderById(id).stream().map(IntakeDraftLine::id).toList());
+    return inventory.register(
+        draft.eventId(),
+        id,
+        request.lines().stream()
+            .map(
+                line ->
+                    new ItemService.Registration(
+                        line.category(),
+                        line.quantity(),
+                        line.sizeCm().dimensions(),
+                        line.condition()))
+            .toList(),
+        request.pickupDeadline() == null ? null : request.pickupDeadline().toInstant(),
+        request.vehicleRequirement(),
+        request.conditionsTranscript());
   }
 
   private IntakeDraft find(Long id) {

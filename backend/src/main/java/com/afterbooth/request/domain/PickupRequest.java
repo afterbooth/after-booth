@@ -91,6 +91,12 @@ public class PickupRequest {
         createdAt);
   }
 
+  public void requireCapacity(long activeQuantity, int addedQuantity) {
+    if (addedQuantity <= 0) throw new BusinessException(ErrorCode.INVALID_INPUT);
+    if (activeQuantity + addedQuantity > quantity)
+      throw new BusinessException(ErrorCode.QTY_EXCEEDS_REQUEST);
+  }
+
   private static void invalid() {
     throw new BusinessException(ErrorCode.INVALID_INPUT);
   }

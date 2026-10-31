@@ -2,6 +2,7 @@ package com.afterbooth.intake.controller;
 
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.eq;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -12,17 +13,23 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.afterbooth.global.error.BusinessException;
 import com.afterbooth.global.error.ErrorCode;
+import com.afterbooth.global.error.ErrorResponse;
+import com.afterbooth.global.idempotency.IdempotencyService;
 import com.afterbooth.intake.domain.IntakeStage;
 import com.afterbooth.intake.domain.IntakeStatus;
+import com.afterbooth.intake.dto.ConfirmIntakeRequest;
 import com.afterbooth.intake.dto.IntakeDraftResponse;
 import com.afterbooth.intake.service.IntakeService;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.UUID;
+import java.util.function.Supplier;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
@@ -31,10 +38,32 @@ import org.springframework.test.web.servlet.MockMvc;
 class IntakeControllerTest {
   @Autowired MockMvc mvc;
   @MockitoBean IntakeService service;
+  @MockitoBean IdempotencyService idempotency;
+
+  @BeforeEach
+  void executeActionAndSerializeResponse() {
+    when(idempotency.execute(
+            any(), any(), any(), any(), org.mockito.ArgumentMatchers.anyInt(), any()))
+        .thenAnswer(
+            invocation -> {
+              int status = invocation.getArgument(4);
+              Supplier<?> action = invocation.getArgument(5);
+              Object body;
+              try {
+                body = action.get();
+              } catch (BusinessException error) {
+                status = error.errorCode().status().value();
+                body = new ErrorResponse(error.errorCode().name(), error.getMessage());
+              }
+              return ResponseEntity.status(status)
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .body(json.writeValueAsString(body));
+            });
+  }
 
   @Test
   void createReturnsAcceptedProcessingSnapshot() throws Exception {
-    when(service.create(any(), eq(1L), any(), eq("image/png")))
+    when(service.create(eq(1L), any(), eq("image/png")))
         .thenReturn(
             new IntakeDraftResponse(
                 2L,
@@ -54,6 +83,45 @@ class IntakeControllerTest {
         .andExpect(jsonPath("$.stage").value("ESTIMATE"))
         .andExpect(jsonPath("$.failureMessage").doesNotExist())
         .andExpect(jsonPath("$.createdAt").value("2026-10-31T12:00:00+09:00"));
+    verify(idempotency)
+        .execute(any(), eq("POST"), eq("/api/intake/drafts"), eq(new byte[] {1}), eq(202), any());
+  }
+
+  @Test
+  void confirmPassesRawRequestBytesToIdempotencyAndReturnsArray() throws Exception {
+    UUID key = UUID.randomUUID();
+    String body =
+        """
+        { "lines": [{"lineId":1,"category":"DISPLAY_RACK","quantity":1,
+          "sizeCm":{"width":1,"depth":1,"height":1},"condition":"GOOD"}] }
+        """;
+    when(service.confirm(eq(1L), any(ConfirmIntakeRequest.class))).thenReturn(List.of());
+    mvc.perform(
+            post("/api/intake/drafts/1/confirm")
+                .header("Idempotency-Key", key)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(body))
+        .andExpect(status().isCreated())
+        .andExpect(jsonPath("$").isArray());
+    verify(idempotency)
+        .execute(
+            eq(key),
+            eq("POST"),
+            eq("/api/intake/drafts/1/confirm"),
+            eq(body.getBytes(java.nio.charset.StandardCharsets.UTF_8)),
+            eq(201),
+            any());
+  }
+
+  @Test
+  void confirmRejectsNonJsonContentType() throws Exception {
+    mvc.perform(
+            post("/api/intake/drafts/1/confirm")
+                .header("Idempotency-Key", UUID.randomUUID())
+                .contentType(MediaType.TEXT_PLAIN)
+                .content("{}"))
+        .andExpect(status().isUnsupportedMediaType());
+    verifyNoInteractions(service);
   }
 
   @Test
