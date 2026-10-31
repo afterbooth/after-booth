@@ -91,6 +91,39 @@ public class Reservation {
         requestId, itemId, organizationId, quantity, holdExpiresAt, pickupDeadline, createdAt);
   }
 
+  public ReservationStatus confirm(Instant now) {
+    if (status == ReservationStatus.EXPIRED) throw new BusinessException(ErrorCode.HOLD_EXPIRED);
+    require(status == ReservationStatus.HELD);
+    if (!now.isBefore(holdExpiresAt)) throw new BusinessException(ErrorCode.HOLD_EXPIRED);
+    return ReservationStatus.CONFIRMED;
+  }
+
+  public ReservationStatus cancel() {
+    require(status == ReservationStatus.HELD || status == ReservationStatus.CONFIRMED);
+    return ReservationStatus.RELEASED;
+  }
+
+  public ReservationStatus dueTransition(Instant now) {
+    if (status == ReservationStatus.HELD && !now.isBefore(holdExpiresAt))
+      return ReservationStatus.EXPIRED;
+    if (status == ReservationStatus.CONFIRMED && !now.isBefore(pickupDeadline))
+      return ReservationStatus.RELEASED;
+    return null;
+  }
+
+  public int requireHandover(int acceptedQuantity, TransitionActor actor, Instant now) {
+    require(status == ReservationStatus.CONFIRMED);
+    require(actor == TransitionActor.USER || actor == TransitionActor.HANDOVER);
+    if (acceptedQuantity <= 0 || acceptedQuantity > quantity) invalid();
+    if (actor == TransitionActor.HANDOVER && !now.isBefore(pickupDeadline))
+      throw new BusinessException(ErrorCode.PICKUP_CLOSED);
+    return quantity - acceptedQuantity;
+  }
+
+  private static void require(boolean valid) {
+    if (!valid) throw new BusinessException(ErrorCode.INVALID_TRANSITION);
+  }
+
   private static void invalid() {
     throw new BusinessException(ErrorCode.INVALID_INPUT);
   }

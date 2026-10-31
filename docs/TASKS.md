@@ -31,7 +31,9 @@ The unit of work is a GitHub issue. Owners: **DY** = namdongyeob, **WJ** = WookJ
 | #9 | Allocation agent (function calling, server validation, alternatives) + allocation board | WJ | BE+AI+FE |
 | #10 | Handover recount + reuse stats + screens | WJ | BE+AI+FE |
 
-- [x] #3 · [x] #4 · [ ] #5 · [ ] #6 · [ ] #7 · [ ] #8 · [ ] #9 · [ ] #10
+- [x] #3 · [x] #4 · [ ] #5 · [ ] #6 · [x] #7 · [ ] #8 · [ ] #9 · [ ] #10
+
+#7 verified locally: `./gradlew spotlessApply compileJava compileTestJava spotlessCheck test --tests '*ReservationIntegrationTest' --tests '*VehicleFitPolicyTest' --tests '*ReservationRulesTest' --tests 'com.afterbooth.ArchitectureTest' --tests 'com.afterbooth.CoreSchemaIntegrationTest' --tests '*CoreDomainTest' --tests '*GlobalExceptionHandlerTest' --no-daemon` in `backend/` passed all 65 selected tests, including 30 PostgreSQL reservation tests. Two independent Codex reviews found no remaining blockers. Vehicle dimensions require explicit configuration (D-038); #10's photo/AI, HTTP and stats integration remains separate (D-039). Frontend, live AI and end-to-end demo were not run.
 
 Dependency order: #1 → (#3 and #4 in parallel) → #5·#6 (DY) / #7 → #8 → #9 → #10 (WJ)
 
