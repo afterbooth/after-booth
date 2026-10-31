@@ -60,10 +60,11 @@ Reviewers: Claude `reviewer` (<model>) · Codex `/codex:review` (<model>, <what 
 - Blocking items get the problem, the rule it breaks and the fix, each in its own short paragraph. Suggestions and notes stay one item each.
 - A section with nothing in it says `None.` Keep it, so agents can find every heading.
 - Write only what you verified. Anything you did not run or could not check goes under **Not run** in QA, never as a pass.
+- No tables in a review. Use headings, bullets and numbered lists.
 
 ## Re-review format
 
-Same headings. **Scope** names the new head commit and adds a **Previous findings** table; review only what changed since the last round.
+Same headings, plus **Previous findings** right after **Scope**: one numbered item per earlier ID. Review only what changed since the last round.
 
 ```markdown
 ## Verdict: Approve (no blocking)
@@ -73,10 +74,10 @@ Same headings. **Scope** names the new head commit and adds a **Previous finding
 - Blocking 0 / suggestions 1 / notes 1.
 - Re-reviewed up to `<sha>` since `<previous sha>`.
 
-| ID | Status | Note |
-|---|---|---|
-| R1 | Resolved | `<commit>` requires the newest row to be MISMATCH |
-| R2 | Not resolved | <why it still matters, or "accepted by the author: <reason>"> |
+### Previous findings
+
+1. **R1 — Resolved.** `<commit>` requires the newest row to be MISMATCH (`<file:line>`).
+2. **R2 — Not resolved.** <Why it still matters, or "accepted by the author: <reason>".>
 
 ### Build verification
 ...
