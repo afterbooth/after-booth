@@ -20,7 +20,7 @@
   "response" : {
     "status" : 200,
     "body" : {
-      "sessionId" : "voyager/transcribe/234A9275E7374D62929CD56A012D0A6F",
+      "sessionId" : "voyager/transcribe/57568EDB8D2A4E0D920039B682CE5CBE",
       "transcript" : "주말 행사에 쓸 진열대 세 개 필요한데 승용차 밖에 없어요.",
       "audioDurationMs" : 5040,
       "turns" : [ ]

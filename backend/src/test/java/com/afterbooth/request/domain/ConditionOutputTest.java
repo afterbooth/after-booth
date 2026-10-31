@@ -10,6 +10,38 @@ import tools.jackson.databind.json.JsonMapper;
 
 class ConditionOutputTest {
   @Test
+  void receiverRequiresCategoryAndVehicleOnly() {
+    assertThat(
+            ConditionOutput.missingFields(
+                ConditionContext.RECEIVER, ConditionOutput.parse("{\"purpose\":\"\"}")))
+        .containsExactly("category", "vehicleType");
+    assertThat(
+            ConditionOutput.missingFields(
+                ConditionContext.RECEIVER,
+                ConditionOutput.parse("{\"category\":\"DISPLAY_RACK\",\"purpose\":\"\"}")))
+        .containsExactly("vehicleType");
+    assertThat(
+            ConditionOutput.missingFields(
+                ConditionContext.RECEIVER,
+                ConditionOutput.parse("{\"vehicleType\":\"SEDAN\",\"purpose\":\"\"}")))
+        .containsExactly("category");
+    assertThat(
+            ConditionOutput.missingFields(
+                ConditionContext.RECEIVER,
+                ConditionOutput.parse(
+                    "{\"category\":\"DISPLAY_RACK\",\"vehicleType\":\"SEDAN\",\"purpose\":\"\"}")))
+        .isEmpty();
+  }
+
+  @Test
+  void giverHasNoRequiredInterpretationFields() {
+    assertThat(
+            ConditionOutput.missingFields(
+                ConditionContext.GIVER, ConditionOutput.parse("{\"purpose\":\"\"}")))
+        .isEmpty();
+  }
+
+  @Test
   void schemaRequiresStringPurpose() {
     var schema = JsonMapper.builder().build().readTree(ConditionPrompt.SCHEMA);
     assertThat(schema.get("required").size()).isEqualTo(1);

@@ -11,7 +11,7 @@
         },
         {
           "role" : "user",
-          "content" : "{\"context\":\"RECEIVER\",\"currentTime\":\"2026-10-31T12:00+09:00\",\"referenceDate\":\"2026-10-31\",\"transcript\":\"주말 행사에 쓸 진열대 세 개 필요한데 승용차 밖에 없어요.\"}"
+          "content" : "{\"context\":\"RECEIVER\",\"referenceDate\":\"2026-10-31\",\"transcript\":\"주말 행사에 쓸 진열대 세 개 필요한데 승용차 밖에 없어요.\"}"
         }
       ],
       "response_format" : {
@@ -63,7 +63,7 @@
   "response" : {
     "status" : 200,
     "body" : {
-      "id" : "chatcmpl-01a19208-6bc4-73cb-bd7f-fbc32304a0de",
+      "id" : "chatcmpl-01a1921c-f378-70e5-a92b-cf824037066b",
       "choices" : [
         {
           "finish_reason" : "stop",
@@ -76,15 +76,15 @@
           "logprobs" : null
         }
       ],
-      "created" : 1793451387,
+      "created" : 1793452733,
       "model" : "muse-spark-1.3",
       "object" : "chat.completion",
       "usage" : {
-        "completion_tokens" : 170,
-        "prompt_tokens" : 563,
-        "total_tokens" : 733,
+        "completion_tokens" : 295,
+        "prompt_tokens" : 545,
+        "total_tokens" : 840,
         "completion_tokens_details" : {
-          "reasoning_tokens" : 137
+          "reasoning_tokens" : 262
         },
         "prompt_tokens_details" : {
           "cached_tokens" : 0

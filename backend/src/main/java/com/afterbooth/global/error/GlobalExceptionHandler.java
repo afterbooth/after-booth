@@ -24,7 +24,9 @@ class GlobalExceptionHandler {
   @ExceptionHandler({
     MethodArgumentNotValidException.class,
     HttpMessageNotReadableException.class,
-    org.springframework.web.bind.MissingRequestHeaderException.class,
+    org.springframework.web.bind.MissingRequestValueException.class,
+    org.springframework.web.multipart.support.MissingServletRequestPartException.class,
+    org.springframework.web.multipart.MaxUploadSizeExceededException.class,
     TypeMismatchException.class
   })
   ResponseEntity<ErrorResponse> handleInvalidInput(Exception e) {

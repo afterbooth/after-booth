@@ -3,6 +3,7 @@ package com.afterbooth.request.domain;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.afterbooth.global.error.BusinessException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.charset.StandardCharsets;
@@ -34,9 +35,9 @@ class WavAudioTest {
   void rejectsWrongChannelsRateDurationOrEmptyAudio(int channels, int rate, int length) {
     assertThatThrownBy(() -> WavAudio.validate(wav(channels, rate, 16, 1, length), "audio/wav"))
         .isInstanceOfSatisfying(
-            RequestFailure.class,
+            BusinessException.class,
             error ->
-                org.assertj.core.api.Assertions.assertThat(error.code())
+                org.assertj.core.api.Assertions.assertThat(error.errorCode().name())
                     .isEqualTo("INVALID_INPUT"));
   }
 
@@ -45,16 +46,18 @@ class WavAudioTest {
   void rejectsNonPcmOrWrongBitDepth(int codec, int bits) {
     assertThatThrownBy(() -> WavAudio.validate(wav(1, 16000, bits, codec, 32000), "audio/wav"))
         .isInstanceOfSatisfying(
-            RequestFailure.class,
-            error -> org.assertj.core.api.Assertions.assertThat(error.status()).isEqualTo(415));
+            BusinessException.class,
+            error ->
+                org.assertj.core.api.Assertions.assertThat(error.errorCode().status().value())
+                    .isEqualTo(415));
   }
 
   @Test
   void rejectsWrongMimeAndContainer() {
     assertThatThrownBy(() -> WavAudio.validate(wav(1, 16000, 16, 1, 32000), "audio/webm"))
-        .isInstanceOf(RequestFailure.class);
+        .isInstanceOf(BusinessException.class);
     assertThatThrownBy(() -> WavAudio.validate(new byte[44], "audio/wav"))
-        .isInstanceOf(RequestFailure.class);
+        .isInstanceOf(BusinessException.class);
   }
 
   @Test
@@ -62,6 +65,6 @@ class WavAudioTest {
     byte[] bytes = wav(1, 16000, 16, 1, 2);
     ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN).putInt(40, Integer.MAX_VALUE);
     assertThatThrownBy(() -> WavAudio.validate(bytes, "audio/wav"))
-        .isInstanceOf(RequestFailure.class);
+        .isInstanceOf(BusinessException.class);
   }
 }

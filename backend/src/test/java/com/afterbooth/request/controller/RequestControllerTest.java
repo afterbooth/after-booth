@@ -5,9 +5,10 @@ import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
+import com.afterbooth.global.error.BusinessException;
+import com.afterbooth.global.error.ErrorCode;
 import com.afterbooth.request.domain.ConditionContext;
 import com.afterbooth.request.domain.ConditionOutput;
-import com.afterbooth.request.domain.RequestFailure;
 import com.afterbooth.request.dto.ConditionInterpretation;
 import com.afterbooth.request.dto.Conditions;
 import com.afterbooth.request.service.ConditionService;
@@ -28,6 +29,29 @@ class RequestControllerTest {
   @Autowired org.springframework.core.env.Environment environment;
   @MockitoBean ConditionService conditions;
   @MockitoBean PickupRequestService requests;
+  @MockitoBean com.afterbooth.global.idempotency.IdempotencyService idempotency;
+
+  @Test
+  void pickupCreationUsesSharedIdempotencyWithExactHttpBody() throws Exception {
+    var key = java.util.UUID.randomUUID();
+    byte[] body = "{\"organizationId\":2}".getBytes(java.nio.charset.StandardCharsets.UTF_8);
+    when(idempotency.execute(
+            eq(key), eq("POST"), eq("/api/pickup-requests"), eq(body), eq(201), any()))
+        .thenAnswer(
+            call -> {
+              ((java.util.function.Supplier<?>) call.getArgument(5)).get();
+              return org.springframework.http.ResponseEntity.status(201).body("{\"id\":42}");
+            });
+    mvc.perform(
+            post("/api/pickup-requests")
+                .header("Idempotency-Key", key)
+                .contentType("application/json")
+                .content(body))
+        .andExpect(status().isCreated())
+        .andExpect(jsonPath("$.id").value(42));
+    org.mockito.Mockito.verify(requests)
+        .create(new String(body, java.nio.charset.StandardCharsets.UTF_8));
+  }
 
   @Test
   void missingContextAndIdempotencyKeyAreInvalidInput() throws Exception {
@@ -42,7 +66,7 @@ class RequestControllerTest {
   @Test
   void invalidAudioUses415ContractError() throws Exception {
     when(conditions.interpret(any(), any(), any(), any(), any()))
-        .thenThrow(RequestFailure.unsupported());
+        .thenThrow(new BusinessException(ErrorCode.UNSUPPORTED_REQUEST));
     mvc.perform(
             multipart("/api/conditions/interpret")
                 .file(new MockMultipartFile("audio", "clip.ogg", "audio/ogg", new byte[] {1}))
@@ -54,7 +78,7 @@ class RequestControllerTest {
   @Test
   void exhaustedReaskUses503ContractError() throws Exception {
     when(conditions.interpret(any(), any(), any(), any(), any()))
-        .thenThrow(RequestFailure.unavailable());
+        .thenThrow(new BusinessException(ErrorCode.AI_UNAVAILABLE));
     mvc.perform(
             multipart("/api/conditions/interpret")
                 .param("context", "RECEIVER")
@@ -79,6 +103,27 @@ class RequestControllerTest {
         .andExpect(
             content()
                 .string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("null"))));
+  }
+
+  @Test
+  void emptyTranscriptReturns200AndEmptyConditions() throws Exception {
+    when(conditions.interpret(any(), any(), any(), any(), any()))
+        .thenReturn(
+            new ConditionInterpretation(
+                ConditionContext.RECEIVER,
+                "",
+                new Conditions(null, null, null, null, null),
+                List.of("category", "vehicleType")));
+    mvc.perform(
+            multipart("/api/conditions/interpret")
+                .file(new MockMultipartFile("audio", "clip.wav", "audio/wav", new byte[] {1}))
+                .param("context", "RECEIVER"))
+        .andExpect(status().isOk())
+        .andExpect(
+            content()
+                .json(
+                    "{\"context\":\"RECEIVER\",\"transcript\":\"\",\"conditions\":{},\"missingFields\":[\"category\",\"vehicleType\"]}",
+                    org.springframework.test.json.JsonCompareMode.STRICT));
   }
 
   @Test
@@ -113,7 +158,8 @@ class RequestControllerTest {
         .andExpect(
             content()
                 .json(
-                    "{\"context\":\"RECEIVER\",\"transcript\":\"수납함 필요해요\",\"conditions\":{},\"missingFields\":[\"category\",\"vehicleType\"]}",
+                    "{\"context\":\"RECEIVER\",\"transcript\":\"수납함"
+                        + " 필요해요\",\"conditions\":{},\"missingFields\":[\"category\",\"vehicleType\"]}",
                     org.springframework.test.json.JsonCompareMode.STRICT));
   }
 }

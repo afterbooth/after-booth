@@ -1,7 +1,8 @@
 package com.afterbooth.request.controller;
 
+import com.afterbooth.global.error.BusinessException;
+import com.afterbooth.global.error.ErrorCode;
 import com.afterbooth.request.domain.ConditionContext;
-import com.afterbooth.request.domain.RequestFailure;
 import com.afterbooth.request.dto.ConditionInterpretation;
 import com.afterbooth.request.service.ConditionService;
 import java.io.IOException;
@@ -33,7 +34,7 @@ class ConditionController {
           audio == null ? null : audio.getContentType(),
           text);
     } catch (IOException e) {
-      throw RequestFailure.invalid();
+      throw new BusinessException(ErrorCode.INVALID_INPUT);
     }
   }
 }

@@ -7,6 +7,7 @@ export function encodeWav(input: Float32Array, inputRate: number): ArrayBuffer {
   }
   const ratio = inputRate / SAMPLE_RATE
   const length = Math.min(Math.floor(input.length / ratio), SAMPLE_RATE * MAX_RECORDING_SECONDS)
+  if (length === 0) throw new Error('No recorded samples')
   const buffer = new ArrayBuffer(44 + length * 2)
   const view = new DataView(buffer)
   const write = (offset: number, value: string) => {

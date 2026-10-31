@@ -47,6 +47,14 @@ test('captures PCM into a WAV file and releases the microphone on stop', async (
   expect(audio.processor.onaudioprocess).toBeNull()
 })
 
+test('rejects an empty recording and still releases the microphone', async () => {
+  const audio = mockAudio()
+  const recording = await startRecording(vi.fn())
+  expect(() => recording.stop()).toThrow('Empty recording')
+  expect(audio.stop).toHaveBeenCalledOnce()
+  expect(audio.close).toHaveBeenCalledOnce()
+})
+
 test('stops at the wall-clock limit even when audio callbacks stall', async () => {
   vi.useFakeTimers()
   const audio = mockAudio()

@@ -1,6 +1,13 @@
 import { expect, test } from 'vitest'
 import { encodeWav } from './wav'
 
+test.each([new Float32Array(0), new Float32Array(2)])(
+  'rejects recordings with zero output samples',
+  (input) => {
+    expect(() => encodeWav(input, 48_000)).toThrow('No recorded samples')
+  },
+)
+
 test('encodes 48 kHz float samples as 16 kHz mono signed 16-bit PCM WAV', () => {
   const input = new Float32Array(48_000).fill(0.5)
   const buffer = encodeWav(input, 48_000)

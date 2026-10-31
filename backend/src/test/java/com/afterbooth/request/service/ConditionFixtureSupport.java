@@ -35,7 +35,8 @@ final class ConditionFixtureSupport {
                       context.getBean(AiGateway.class),
                       mock(RequestReferences.class),
                       Clock.fixed(Instant.parse("2026-10-31T03:00:00Z"), ZoneOffset.UTC),
-                      "minimal");
+                      "minimal",
+                      "2026-10-31");
               var result =
                   service.interpret(ConditionContext.RECEIVER, null, wav, "audio/wav", null);
               assertThat(result.transcript()).isNotBlank();

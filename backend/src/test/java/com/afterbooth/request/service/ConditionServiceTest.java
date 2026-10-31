@@ -6,10 +6,10 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 import com.afterbooth.ai.*;
+import com.afterbooth.global.error.BusinessException;
 import com.afterbooth.inventory.domain.ItemCategory;
 import com.afterbooth.inventory.domain.VehicleType;
 import com.afterbooth.request.domain.ConditionContext;
-import com.afterbooth.request.domain.RequestFailure;
 import com.afterbooth.request.dto.ConditionInterpretation;
 import com.afterbooth.request.repository.RequestReferences;
 import java.nio.ByteBuffer;
@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
 
@@ -33,7 +34,8 @@ class ConditionServiceTest {
           gateway,
           references,
           Clock.fixed(Instant.parse("2026-10-31T16:00:00Z"), ZoneOffset.UTC),
-          "minimal");
+          "minimal",
+          "");
 
   static ChatResponse answer(String json) {
     return new ChatResponse(json, List.of(), "stop", null);
@@ -50,6 +52,50 @@ class ConditionServiceTest {
     verify(gateway, never()).transcribe(any());
   }
 
+  @ParameterizedTest
+  @EnumSource(ConditionContext.class)
+  void blankTranscriptionReturnsEmptyConditionsWithoutSpark(ConditionContext context) {
+    byte[] audio = wav();
+    when(gateway.transcribe(audio)).thenReturn(new Transcription("  \t\n", 1000));
+    when(references.eventDeadline(3L))
+        .thenReturn(Optional.of(Instant.parse("2026-11-05T11:00:00Z")));
+    var result = service.interpret(context, 3L, audio, "audio/wav", null);
+    assertThat(result.transcript()).isEmpty();
+    assertThat(result.conditions())
+        .isEqualTo(new com.afterbooth.request.dto.Conditions(null, null, null, null, null));
+    assertThat(result.missingFields())
+        .containsExactlyElementsOf(
+            context == ConditionContext.RECEIVER ? List.of("category", "vehicleType") : List.of());
+    verify(gateway, never()).chat(any());
+  }
+
+  @Test
+  void pinnedReferenceDateMakesReceiverPromptsIndependentOfClockTime() {
+    when(gateway.chat(any())).thenReturn(answer("{\"purpose\":\"\"}"));
+    var early =
+        new ConditionService(
+            gateway,
+            references,
+            Clock.fixed(Instant.parse("2026-10-31T00:00:00Z"), ZoneOffset.UTC),
+            "minimal",
+            "2026-10-31");
+    var late =
+        new ConditionService(
+            gateway,
+            references,
+            Clock.fixed(Instant.parse("2026-11-02T23:00:00Z"), ZoneOffset.UTC),
+            "minimal",
+            "2026-10-31");
+    early.interpret(ConditionContext.RECEIVER, null, null, null, "today");
+    late.interpret(ConditionContext.RECEIVER, null, null, null, "today");
+    ArgumentCaptor<ChatRequest> calls = ArgumentCaptor.forClass(ChatRequest.class);
+    verify(gateway, times(2)).chat(calls.capture());
+    assertThat(calls.getAllValues().get(0)).isEqualTo(calls.getAllValues().get(1));
+    assertThat(((ChatRequest.UserMessage) calls.getValue().messages().get(1)).text())
+        .contains("\"referenceDate\":\"2026-10-31\"")
+        .doesNotContain("currentTime");
+  }
+
   @Test
   void transcribesAudioBeforeStructuring() {
     byte[] wav = wav();
@@ -57,7 +103,8 @@ class ConditionServiceTest {
     when(gateway.chat(any()))
         .thenReturn(
             answer(
-                "{\"category\":\"DISPLAY_RACK\",\"vehicleType\":\"SEDAN\",\"purpose\":\"주말 행사 진열용\"}"));
+                "{\"category\":\"DISPLAY_RACK\",\"vehicleType\":\"SEDAN\",\"purpose\":\"주말 행사"
+                    + " 진열용\"}"));
     ConditionInterpretation result =
         service.interpret(ConditionContext.RECEIVER, null, wav, "audio/wav", null);
     assertThat(result.conditions().category()).isEqualTo(ItemCategory.DISPLAY_RACK);
@@ -88,7 +135,8 @@ class ConditionServiceTest {
     when(gateway.chat(any())).thenReturn(answer(invalid));
     assertThatThrownBy(() -> service.interpret(ConditionContext.RECEIVER, null, null, null, "조건"))
         .isInstanceOfSatisfying(
-            RequestFailure.class, error -> assertThat(error.code()).isEqualTo("AI_UNAVAILABLE"));
+            BusinessException.class,
+            error -> assertThat(error.errorCode().name()).isEqualTo("AI_UNAVAILABLE"));
     verify(gateway, times(2)).chat(any());
   }
 
@@ -166,7 +214,7 @@ class ConditionServiceTest {
   @Test
   void rejectsMissingGiverEventBeforeCallingAi() {
     assertThatThrownBy(() -> service.interpret(ConditionContext.GIVER, null, null, null, "오늘"))
-        .isInstanceOf(RequestFailure.class);
+        .isInstanceOf(BusinessException.class);
     verifyNoInteractions(gateway);
   }
 
@@ -175,7 +223,8 @@ class ConditionServiceTest {
     when(references.eventDeadline(99L)).thenReturn(Optional.empty());
     assertThatThrownBy(() -> service.interpret(ConditionContext.GIVER, 99L, null, null, "오늘"))
         .isInstanceOfSatisfying(
-            RequestFailure.class, error -> assertThat(error.status()).isEqualTo(400));
+            BusinessException.class,
+            error -> assertThat(error.errorCode().status().value()).isEqualTo(400));
     verifyNoInteractions(gateway);
   }
 
@@ -183,14 +232,14 @@ class ConditionServiceTest {
   void rejectsBothNeitherBlankAndTooLongInputBeforeAi() {
     assertThatThrownBy(
             () -> service.interpret(ConditionContext.RECEIVER, null, wav(), "audio/wav", "text"))
-        .isInstanceOf(RequestFailure.class);
+        .isInstanceOf(BusinessException.class);
     assertThatThrownBy(() -> service.interpret(ConditionContext.RECEIVER, null, null, null, null))
-        .isInstanceOf(RequestFailure.class);
+        .isInstanceOf(BusinessException.class);
     assertThatThrownBy(() -> service.interpret(ConditionContext.RECEIVER, null, null, null, " "))
-        .isInstanceOf(RequestFailure.class);
+        .isInstanceOf(BusinessException.class);
     assertThatThrownBy(
             () -> service.interpret(ConditionContext.RECEIVER, null, null, null, "x".repeat(501)))
-        .isInstanceOf(RequestFailure.class);
+        .isInstanceOf(BusinessException.class);
     verifyNoInteractions(gateway);
   }
 
@@ -199,7 +248,8 @@ class ConditionServiceTest {
     when(gateway.chat(any())).thenThrow(new AiCallException(Capability.SPARK, "timeout"));
     assertThatThrownBy(() -> service.interpret(ConditionContext.RECEIVER, null, null, null, "진열대"))
         .isInstanceOfSatisfying(
-            RequestFailure.class, error -> assertThat(error.status()).isEqualTo(503));
+            BusinessException.class,
+            error -> assertThat(error.errorCode().status().value()).isEqualTo(503));
     verify(gateway).chat(any());
   }
 

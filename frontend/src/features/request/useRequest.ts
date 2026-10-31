@@ -61,6 +61,11 @@ export function useRequest() {
   const recorder = useRef<Awaited<ReturnType<typeof startRecording>> | undefined>(undefined)
   const active = useRef(true)
   const busy = useRef(false)
+  const idempotencyKey = useRef<string | undefined>(undefined)
+
+  useEffect(() => {
+    idempotencyKey.current = undefined
+  }, [fields, organizationId])
 
   useEffect(() => {
     active.current = true
@@ -197,12 +202,13 @@ export function useRequest() {
       ...(fields.pickupDeadline ? { pickupDeadline: `${fields.pickupDeadline}:00+09:00` } : {}),
       ...(fields.purpose.trim() ? { purpose: fields.purpose.trim() } : {}),
     }
-    const key = crypto.randomUUID()
+    const key = (idempotencyKey.current ??= crypto.randomUUID())
     try {
       for (let attempt = 0; ; attempt++) {
         try {
           const res = await createPickupRequest(body, { 'Idempotency-Key': key })
           if (res.status !== 201) throw new ApiError(res.status, res.data.code, res.data.message)
+          idempotencyKey.current = undefined
           if (active.current) {
             setSaved(res.data)
             setStatus('saved')

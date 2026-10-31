@@ -5,6 +5,8 @@ import com.afterbooth.inventory.domain.VehicleType;
 import com.afterbooth.request.dto.Conditions;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Set;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
@@ -48,6 +50,15 @@ public final class ConditionOutput {
                 .atZoneSameInstant(ZoneId.of("Asia/Seoul"))
                 .toOffsetDateTime(),
         purpose.stringValue().isBlank() ? null : purpose.stringValue());
+  }
+
+  public static List<String> missingFields(ConditionContext context, Conditions conditions) {
+    List<String> missing = new ArrayList<>();
+    if (context == ConditionContext.RECEIVER) {
+      if (conditions.category() == null) missing.add("category");
+      if (conditions.vehicleType() == null) missing.add("vehicleType");
+    }
+    return List.copyOf(missing);
   }
 
   private static String text(JsonNode root, String name) {
