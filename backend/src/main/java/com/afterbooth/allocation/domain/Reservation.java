@@ -10,6 +10,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.Objects;
 
@@ -89,6 +90,72 @@ public class Reservation {
       Instant createdAt) {
     return new Reservation(
         requestId, itemId, organizationId, quantity, holdExpiresAt, pickupDeadline, createdAt);
+  }
+
+  public static Reservation hold(
+      Long requestId,
+      Long itemId,
+      Long organizationId,
+      int quantity,
+      Duration ttl,
+      Instant pickupDeadline,
+      Instant createdAt) {
+    if (ttl.isZero() || ttl.isNegative())
+      throw new IllegalArgumentException("Hold TTL must be positive");
+    Instant expires = createdAt.plus(ttl);
+    if (expires.isAfter(pickupDeadline)) expires = pickupDeadline;
+    return hold(requestId, itemId, organizationId, quantity, expires, pickupDeadline, createdAt);
+  }
+
+  public ConfirmationDecision confirmationAt(Instant now) {
+    if (status == ReservationStatus.EXPIRED)
+      return new ConfirmationDecision(null, null, ErrorCode.HOLD_EXPIRED);
+    require(status == ReservationStatus.HELD);
+    if (!now.isBefore(holdExpiresAt))
+      return new ConfirmationDecision(
+          ReservationStatus.EXPIRED, TransitionActor.SCHEDULER, ErrorCode.HOLD_EXPIRED);
+    return new ConfirmationDecision(ReservationStatus.CONFIRMED, TransitionActor.USER, null);
+  }
+
+  public ErrorCode confirmationConflict() {
+    return status == ReservationStatus.EXPIRED
+        ? ErrorCode.HOLD_EXPIRED
+        : ErrorCode.INVALID_TRANSITION;
+  }
+
+  public record ConfirmationDecision(
+      ReservationStatus next, TransitionActor actor, ErrorCode error) {}
+
+  public ReservationStatus confirm(Instant now) {
+    ConfirmationDecision decision = confirmationAt(now);
+    if (decision.error() != null) throw new BusinessException(decision.error());
+    return decision.next();
+  }
+
+  public ReservationStatus cancel() {
+    require(status == ReservationStatus.HELD || status == ReservationStatus.CONFIRMED);
+    return ReservationStatus.RELEASED;
+  }
+
+  public ReservationStatus dueTransition(Instant now) {
+    if (status == ReservationStatus.HELD && !now.isBefore(holdExpiresAt))
+      return ReservationStatus.EXPIRED;
+    if (status == ReservationStatus.CONFIRMED && !now.isBefore(pickupDeadline))
+      return ReservationStatus.RELEASED;
+    return null;
+  }
+
+  public int requireHandover(int acceptedQuantity, TransitionActor actor, Instant now) {
+    require(status == ReservationStatus.CONFIRMED);
+    require(actor == TransitionActor.USER || actor == TransitionActor.HANDOVER);
+    if (acceptedQuantity <= 0 || acceptedQuantity > quantity) invalid();
+    if (actor == TransitionActor.HANDOVER && !now.isBefore(pickupDeadline))
+      throw new BusinessException(ErrorCode.PICKUP_CLOSED);
+    return quantity - acceptedQuantity;
+  }
+
+  private static void require(boolean valid) {
+    if (!valid) throw new BusinessException(ErrorCode.INVALID_TRANSITION);
   }
 
   private static void invalid() {

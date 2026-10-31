@@ -17,6 +17,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.HexFormat;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.databind.json.JsonMapper;
 
@@ -81,5 +82,10 @@ public class PickupRequestService {
     } catch (NoSuchAlgorithmException e) {
       throw new IllegalStateException(e);
     }
+  }
+
+  @Transactional(propagation = Propagation.MANDATORY)
+  public PickupRequest lock(Long id) {
+    return repository.lock(id).orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND));
   }
 }
