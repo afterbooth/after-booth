@@ -8,8 +8,11 @@ import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingRequestValueException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.multipart.support.MissingServletRequestPartException;
 
 @RestControllerAdvice
 class GlobalExceptionHandler {
@@ -24,7 +27,10 @@ class GlobalExceptionHandler {
   @ExceptionHandler({
     MethodArgumentNotValidException.class,
     HttpMessageNotReadableException.class,
-    TypeMismatchException.class
+    TypeMismatchException.class,
+    MissingRequestValueException.class,
+    MissingServletRequestPartException.class,
+    MaxUploadSizeExceededException.class
   })
   ResponseEntity<ErrorResponse> handleInvalidInput(Exception e) {
     return respond(ErrorCode.INVALID_INPUT);

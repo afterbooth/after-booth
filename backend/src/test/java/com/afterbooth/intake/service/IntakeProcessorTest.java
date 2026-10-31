@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.anyString;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
@@ -26,6 +27,8 @@ import java.math.BigDecimal;
 import java.util.List;
 import java.util.concurrent.RejectedExecutionException;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
 
 class IntakeProcessorTest {
@@ -100,6 +103,62 @@ class IntakeProcessorTest {
   }
 
   @Test
+  void failedSegmentTransitionFailsDraftAtTheLastPersistedStage() {
+    IntakeDraft draft = trackFailure();
+    when(pipeline.estimate(photo)).thenReturn(List.of(line));
+    doThrow(new IllegalStateException()).when(store).segment(1L);
+
+    processor.process(event);
+
+    assertThat(draft.status()).isEqualTo(IntakeStatus.FAILED);
+    assertThat(draft.stage()).isEqualTo(IntakeStage.ESTIMATE);
+    assertThat(draft.failureMessage()).matches(".*[\uac00-\ud7a3].*");
+    verify(pipeline, never()).segment(any(), any());
+    verify(store, never()).ready(any(), any());
+  }
+
+  @ParameterizedTest
+  @ValueSource(booleans = {false, true})
+  void failedReadyWriteFailsDraftAtSegmentEvenAfterSamFallback(boolean samFails) {
+    IntakeDraft draft = trackFailure();
+    when(pipeline.estimate(photo)).thenReturn(List.of(line));
+    doAnswer(
+            invocation -> {
+              draft.beginSegmentation();
+              return null;
+            })
+        .when(store)
+        .segment(1L);
+    if (samFails) {
+      when(pipeline.segment(photo, List.of(line))).thenThrow(new IllegalStateException());
+    } else {
+      when(pipeline.segment(photo, List.of(line))).thenReturn(List.of(line));
+    }
+    doThrow(new IllegalStateException()).when(store).ready(eq(1L), any());
+
+    processor.process(event);
+
+    assertThat(draft.status()).isEqualTo(IntakeStatus.FAILED);
+    assertThat(draft.stage()).isEqualTo(IntakeStage.SEGMENT);
+    assertThat(draft.failureMessage()).matches(".*[\uac00-\ud7a3].*");
+    verify(store).fail(eq(1L), anyString());
+  }
+
+  @Test
+  void failedEmptyReadyWriteFailsDraftAtEstimate() {
+    IntakeDraft draft = trackFailure();
+    when(pipeline.estimate(photo)).thenReturn(List.of());
+    doThrow(new IllegalStateException()).when(store).ready(1L, List.of());
+
+    processor.process(event);
+
+    assertThat(draft.status()).isEqualTo(IntakeStatus.FAILED);
+    assertThat(draft.stage()).isEqualTo(IntakeStage.ESTIMATE);
+    assertThat(draft.failureMessage()).matches(".*[\uac00-\ud7a3].*");
+    verify(store, never()).segment(any());
+  }
+
+  @Test
   void rejectionFailsDraftRatherThanLeavingItProcessing() {
     new IntakeProcessor(
             pipeline,
@@ -139,5 +198,17 @@ class IntakeProcessorTest {
     verify(gateway, times(2)).chat(any());
     verify(gateway, never()).segment(any());
     verify(store, never()).ready(any(), any());
+  }
+
+  private IntakeDraft trackFailure() {
+    IntakeDraft draft = IntakeDraft.start(1L, java.time.Instant.EPOCH);
+    doAnswer(
+            invocation -> {
+              draft.fail(invocation.getArgument(1));
+              return null;
+            })
+        .when(store)
+        .fail(eq(1L), anyString());
+    return draft;
   }
 }

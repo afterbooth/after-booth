@@ -1,4 +1,4 @@
-package com.afterbooth.intake.repository;
+package com.afterbooth.global.idempotency;
 
 import java.time.Instant;
 import java.util.Optional;
@@ -7,10 +7,10 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 @Repository
-public class IntakeIdempotencyRepository {
+public class IdempotencyRepository {
   private final JdbcTemplate jdbc;
 
-  public IntakeIdempotencyRepository(JdbcTemplate jdbc) {
+  public IdempotencyRepository(JdbcTemplate jdbc) {
     this.jdbc = jdbc;
   }
 

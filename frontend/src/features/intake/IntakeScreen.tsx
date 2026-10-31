@@ -59,7 +59,7 @@ export function IntakeScreen() {
         {photoUrl ? '다시 찍기' : '부스 사진 찍기'}
         <input
           type="file"
-          accept="image/*"
+          accept="image/jpeg,image/png"
           capture="environment"
           className="sr-only"
           disabled={busy}

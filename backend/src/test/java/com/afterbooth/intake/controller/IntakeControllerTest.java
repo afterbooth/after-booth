@@ -10,8 +10,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import com.afterbooth.intake.domain.IntakeError;
-import com.afterbooth.intake.domain.IntakeException;
+import com.afterbooth.global.error.BusinessException;
+import com.afterbooth.global.error.ErrorCode;
 import com.afterbooth.intake.domain.IntakeStage;
 import com.afterbooth.intake.domain.IntakeStatus;
 import com.afterbooth.intake.dto.IntakeDraftResponse;
@@ -57,6 +57,17 @@ class IntakeControllerTest {
   }
 
   @Test
+  void missingPhotoReturnsInvalidInput() throws Exception {
+    mvc.perform(
+            multipart("/api/intake/drafts")
+                .param("eventId", "1")
+                .header("Idempotency-Key", UUID.randomUUID()))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.code").value("INVALID_INPUT"));
+    verifyNoInteractions(service);
+  }
+
+  @Test
   void missingAndMalformedKeyReturnInvalidInput() throws Exception {
     mvc.perform(
             multipart("/api/intake/drafts")
@@ -94,7 +105,7 @@ class IntakeControllerTest {
 
   @Test
   void mapsDraftConflictToContractError() throws Exception {
-    when(service.get(1L)).thenThrow(new IntakeException(IntakeError.DRAFT_NOT_READY));
+    when(service.get(1L)).thenThrow(new BusinessException(ErrorCode.DRAFT_NOT_READY));
     mvc.perform(get("/api/intake/drafts/1"))
         .andExpect(status().isConflict())
         .andExpect(jsonPath("$.code").value("DRAFT_NOT_READY"));

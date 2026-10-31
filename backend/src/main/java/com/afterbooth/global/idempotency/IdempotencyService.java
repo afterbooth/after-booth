@@ -1,11 +1,8 @@
-package com.afterbooth.intake.service;
+package com.afterbooth.global.idempotency;
 
 import com.afterbooth.global.error.BusinessException;
 import com.afterbooth.global.error.ErrorCode;
 import com.afterbooth.global.error.ErrorResponse;
-import com.afterbooth.intake.domain.IntakeError;
-import com.afterbooth.intake.domain.IntakeException;
-import com.afterbooth.intake.repository.IntakeIdempotencyRepository;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Clock;
@@ -22,15 +19,15 @@ import tools.jackson.core.type.TypeReference;
 import tools.jackson.databind.json.JsonMapper;
 
 @Service
-public class IntakeIdempotency {
-  private static final Logger log = LoggerFactory.getLogger(IntakeIdempotency.class);
-  private final IntakeIdempotencyRepository records;
+public class IdempotencyService {
+  private static final Logger log = LoggerFactory.getLogger(IdempotencyService.class);
+  private final IdempotencyRepository records;
   private final JsonMapper json;
   private final Clock clock;
   private final TransactionTemplate tx;
 
-  public IntakeIdempotency(
-      IntakeIdempotencyRepository records,
+  public IdempotencyService(
+      IdempotencyRepository records,
       JsonMapper json,
       Clock clock,
       PlatformTransactionManager manager) {
@@ -49,9 +46,9 @@ public class IntakeIdempotency {
       var saved =
           records
               .find(key)
-              .orElseThrow(() -> new IntakeException(IntakeError.IDEMPOTENCY_CONFLICT));
+              .orElseThrow(() -> new BusinessException(ErrorCode.IDEMPOTENCY_CONFLICT));
       if (!saved.fingerprint().equals(fingerprint) || !saved.state().equals("DONE"))
-        throw new IntakeException(IntakeError.IDEMPOTENCY_CONFLICT);
+        throw new BusinessException(ErrorCode.IDEMPOTENCY_CONFLICT);
       if (saved.status() != null && saved.status() >= 400) throw replayFailure(saved.body());
       return json.readValue(saved.body(), type);
     }
@@ -71,16 +68,8 @@ public class IntakeIdempotency {
                   json.writeValueAsString(
                       new ErrorResponse(e.errorCode().name(), e.getMessage()))));
       throw e;
-    } catch (IntakeException e) {
-      tx.executeWithoutResult(
-          s ->
-              records.finish(
-                  key,
-                  e.error().status().value(),
-                  json.writeValueAsString(new ErrorResponse(e.error().name(), e.getMessage()))));
-      throw e;
     } catch (RuntimeException e) {
-      log.error("Intake operation failed", e);
+      log.error("Idempotent operation failed", e);
       tx.executeWithoutResult(
           s ->
               records.finish(
@@ -97,15 +86,11 @@ public class IntakeIdempotency {
 
   private RuntimeException replayFailure(String body) {
     ErrorResponse error = json.readValue(body, ErrorResponse.class);
-    return switch (error.code()) {
-      case "DRAFT_NOT_READY", "DRAFT_ALREADY_CONFIRMED", "IDEMPOTENCY_CONFLICT" ->
-          new IntakeException(IntakeError.valueOf(error.code()), error.message());
-      default -> new BusinessException(ErrorCode.valueOf(error.code()), error.message());
-    };
+    return new BusinessException(ErrorCode.valueOf(error.code()), error.message());
   }
 
-  public String fingerprint(String path, Object body) {
-    return "POST " + path + " " + hash(json.writeValueAsBytes(body));
+  public String fingerprint(String method, String path, Object body) {
+    return method + " " + path + " " + hash(json.writeValueAsBytes(body));
   }
 
   public static String hash(byte[] bytes) {

@@ -20,6 +20,10 @@ public record EstimatedLine(
     boxes = List.copyOf(boxes);
   }
 
+  public EstimatedLine samFailed() {
+    return segmented(boxes, true);
+  }
+
   public EstimatedLine segmented(List<BoundingBox> segmentedBoxes, boolean incomplete) {
     return new EstimatedLine(
         category,

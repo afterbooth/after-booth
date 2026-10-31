@@ -1,4 +1,4 @@
-package com.afterbooth.intake.service;
+package com.afterbooth.global.idempotency;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -11,9 +11,6 @@ import static org.mockito.Mockito.when;
 
 import com.afterbooth.global.error.BusinessException;
 import com.afterbooth.global.error.ErrorCode;
-import com.afterbooth.intake.domain.IntakeError;
-import com.afterbooth.intake.domain.IntakeException;
-import com.afterbooth.intake.repository.IntakeIdempotencyRepository;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
@@ -28,15 +25,15 @@ import org.springframework.transaction.TransactionStatus;
 import tools.jackson.core.type.TypeReference;
 import tools.jackson.databind.json.JsonMapper;
 
-class IntakeIdempotencyTest {
-  private final IntakeIdempotencyRepository records = mock(IntakeIdempotencyRepository.class);
+class IdempotencyServiceTest {
+  private final IdempotencyRepository records = mock(IdempotencyRepository.class);
   private final JsonMapper json = JsonMapper.builder().build();
   private final PlatformTransactionManager manager = mock(PlatformTransactionManager.class);
   private final UUID key = UUID.randomUUID();
 
-  private IntakeIdempotency service() {
+  private IdempotencyService service() {
     when(manager.getTransaction(any())).thenReturn(mock(TransactionStatus.class));
-    return new IntakeIdempotency(
+    return new IdempotencyService(
         records, json, Clock.fixed(Instant.EPOCH, ZoneOffset.UTC), manager);
   }
 
@@ -53,7 +50,7 @@ class IntakeIdempotencyTest {
     verify(records).finish(eq(key), eq(400), body.capture());
     when(records.find(key))
         .thenReturn(
-            Optional.of(new IntakeIdempotencyRepository.Saved("fp", "DONE", body.getValue(), 400)));
+            Optional.of(new IdempotencyRepository.Saved("fp", "DONE", body.getValue(), 400)));
     assertThatThrownBy(
             () -> service.execute(key, "fp", 201, new TypeReference<String>() {}, action))
         .isInstanceOf(BusinessException.class)
@@ -67,20 +64,20 @@ class IntakeIdempotencyTest {
     var service = service();
     when(records.claim(eq(key), eq("fp"), any())).thenReturn(true, false);
     Supplier<String> action = mock(Supplier.class);
-    when(action.get()).thenThrow(new IntakeException(IntakeError.DRAFT_NOT_READY));
+    when(action.get()).thenThrow(new BusinessException(ErrorCode.DRAFT_NOT_READY));
     assertThatThrownBy(
             () -> service.execute(key, "fp", 201, new TypeReference<String>() {}, action))
-        .isInstanceOf(IntakeException.class);
+        .isInstanceOf(BusinessException.class);
     var body = ArgumentCaptor.forClass(String.class);
     verify(records).finish(eq(key), eq(409), body.capture());
     when(records.find(key))
         .thenReturn(
-            Optional.of(new IntakeIdempotencyRepository.Saved("fp", "DONE", body.getValue(), 409)));
+            Optional.of(new IdempotencyRepository.Saved("fp", "DONE", body.getValue(), 409)));
     assertThatThrownBy(
             () -> service.execute(key, "fp", 201, new TypeReference<String>() {}, action))
-        .isInstanceOf(IntakeException.class)
-        .extracting(e -> ((IntakeException) e).error())
-        .isEqualTo(IntakeError.DRAFT_NOT_READY);
+        .isInstanceOf(BusinessException.class)
+        .extracting(e -> ((BusinessException) e).errorCode())
+        .isEqualTo(ErrorCode.DRAFT_NOT_READY);
     verify(action, times(1)).get();
   }
 
@@ -99,7 +96,7 @@ class IntakeIdempotencyTest {
     assertThat(body.getValue()).doesNotContain("private infrastructure details");
     when(records.find(key))
         .thenReturn(
-            Optional.of(new IntakeIdempotencyRepository.Saved("fp", "DONE", body.getValue(), 500)));
+            Optional.of(new IdempotencyRepository.Saved("fp", "DONE", body.getValue(), 500)));
     assertThatThrownBy(
             () -> service.execute(key, "fp", 201, new TypeReference<String>() {}, action))
         .isInstanceOf(BusinessException.class)
@@ -108,11 +105,21 @@ class IntakeIdempotencyTest {
   }
 
   @Test
+  void fingerprintDistinguishesMethodPathAndBody() {
+    var service = service();
+    String original = service.fingerprint("POST", "/api/example", List.of(1));
+    assertThat(service.fingerprint("POST", "/api/example", List.of(1))).isEqualTo(original);
+    assertThat(service.fingerprint("PATCH", "/api/example", List.of(1))).isNotEqualTo(original);
+    assertThat(service.fingerprint("POST", "/api/other", List.of(1))).isNotEqualTo(original);
+    assertThat(service.fingerprint("POST", "/api/example", List.of(2))).isNotEqualTo(original);
+  }
+
+  @Test
   void savedArraysReplayAsArrays() {
     var service = service();
     when(records.claim(any(), any(), any())).thenReturn(false);
     when(records.find(key))
-        .thenReturn(Optional.of(new IntakeIdempotencyRepository.Saved("fp", "DONE", "[1,2]", 201)));
+        .thenReturn(Optional.of(new IdempotencyRepository.Saved("fp", "DONE", "[1,2]", 201)));
     assertThat(
             service.execute(
                 key,

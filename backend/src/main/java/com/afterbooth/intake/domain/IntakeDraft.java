@@ -1,5 +1,7 @@
 package com.afterbooth.intake.domain;
 
+import com.afterbooth.global.error.BusinessException;
+import com.afterbooth.global.error.ErrorCode;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -9,6 +11,8 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.time.Instant;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Objects;
 
 @Entity
@@ -52,7 +56,7 @@ public class IntakeDraft {
 
   public void beginSegmentation() {
     requireProcessing();
-    if (stage != IntakeStage.ESTIMATE) throw new IntakeException(IntakeError.DRAFT_NOT_READY);
+    if (stage != IntakeStage.ESTIMATE) throw new BusinessException(ErrorCode.DRAFT_NOT_READY);
     stage = IntakeStage.SEGMENT;
   }
 
@@ -68,20 +72,18 @@ public class IntakeDraft {
     status = IntakeStatus.FAILED;
   }
 
-  public void confirm(java.util.List<Long> selectedIds, java.util.List<Long> ownIds) {
+  public void confirm(List<Long> selectedIds, List<Long> ownIds) {
     if (status == IntakeStatus.CONFIRMED)
-      throw new IntakeException(IntakeError.DRAFT_ALREADY_CONFIRMED);
-    if (status != IntakeStatus.READY) throw new IntakeException(IntakeError.DRAFT_NOT_READY);
+      throw new BusinessException(ErrorCode.DRAFT_ALREADY_CONFIRMED);
+    if (status != IntakeStatus.READY) throw new BusinessException(ErrorCode.DRAFT_NOT_READY);
     if (selectedIds.isEmpty()
-        || selectedIds.size() != new java.util.HashSet<>(selectedIds).size()
-        || !ownIds.containsAll(selectedIds))
-      throw new com.afterbooth.global.error.BusinessException(
-          com.afterbooth.global.error.ErrorCode.INVALID_INPUT);
+        || selectedIds.size() != new HashSet<>(selectedIds).size()
+        || !ownIds.containsAll(selectedIds)) throw new BusinessException(ErrorCode.INVALID_INPUT);
     status = IntakeStatus.CONFIRMED;
   }
 
   private void requireProcessing() {
-    if (status != IntakeStatus.PROCESSING) throw new IntakeException(IntakeError.DRAFT_NOT_READY);
+    if (status != IntakeStatus.PROCESSING) throw new BusinessException(ErrorCode.DRAFT_NOT_READY);
   }
 
   public Long id() {

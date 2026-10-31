@@ -2,6 +2,7 @@ package com.afterbooth.intake.service;
 
 import com.afterbooth.global.error.BusinessException;
 import com.afterbooth.global.error.ErrorCode;
+import com.afterbooth.global.idempotency.IdempotencyService;
 import com.afterbooth.intake.domain.IntakeDraft;
 import com.afterbooth.intake.domain.IntakeDraftLine;
 import com.afterbooth.intake.domain.IntakeStatus;
@@ -26,7 +27,7 @@ public class IntakeService {
   private final IntakeDraftRepository drafts;
   private final IntakeDraftLineRepository lines;
   private final ItemService inventory;
-  private final IntakeIdempotency idempotency;
+  private final IdempotencyService idempotency;
   private final ApplicationEventPublisher events;
   private final Clock clock;
 
@@ -34,7 +35,7 @@ public class IntakeService {
       IntakeDraftRepository drafts,
       IntakeDraftLineRepository lines,
       ItemService inventory,
-      IntakeIdempotency idempotency,
+      IdempotencyService idempotency,
       ApplicationEventPublisher events,
       Clock clock) {
     this.drafts = drafts;
@@ -49,7 +50,9 @@ public class IntakeService {
     IntakeUpload upload = new IntakeUpload(bytes, mediaType);
     String fingerprint =
         idempotency.fingerprint(
-            "/api/intake/drafts", List.of(eventId, mediaType, IntakeIdempotency.hash(bytes)));
+            "POST",
+            "/api/intake/drafts",
+            List.of(eventId, mediaType, IdempotencyService.hash(bytes)));
     return idempotency.execute(
         key,
         fingerprint,
@@ -75,7 +78,8 @@ public class IntakeService {
   }
 
   public List<ItemResponse> confirm(UUID key, Long id, ConfirmIntakeRequest request) {
-    String fingerprint = idempotency.fingerprint("/api/intake/drafts/" + id + "/confirm", request);
+    String fingerprint =
+        idempotency.fingerprint("POST", "/api/intake/drafts/" + id + "/confirm", request);
     return idempotency.execute(
         key,
         fingerprint,

@@ -15,6 +15,33 @@ import type {
 import { ApiError } from '../../api/http'
 
 const POLL_INTERVAL_MS = 1000
+const POLL_TIMEOUT_MS = 90_000
+const MAX_POLL_ERRORS = 3
+const CONFLICT_RETRY_DELAYS = [1000, 2000, 4000]
+
+async function retryConflict<T>(action: () => Promise<T>, signal: AbortSignal): Promise<T> {
+  for (let attempt = 0; ; attempt += 1) {
+    signal.throwIfAborted()
+    try {
+      return await action()
+    } catch (e) {
+      if (!(e instanceof ApiError) || e.code !== 'IDEMPOTENCY_CONFLICT') throw e
+      const delay = CONFLICT_RETRY_DELAYS[attempt]
+      if (delay === undefined) throw e
+      await new Promise<void>((resolve, reject) => {
+        const abort = () => {
+          clearTimeout(timer)
+          reject(signal.reason)
+        }
+        const timer = setTimeout(() => {
+          signal.removeEventListener('abort', abort)
+          resolve()
+        }, delay)
+        signal.addEventListener('abort', abort, { once: true })
+      })
+    }
+  }
+}
 
 export type EditableLine = {
   lineId: number
@@ -84,30 +111,59 @@ export function useIntake() {
   const [items, setItems] = useState<Item[]>()
   // a retry of the same confirm request reuses its key (D-019); an edited request is a new action
   const confirmAttempt = useRef<{ body: string; key: string }>(undefined)
+  const writeController = useRef<AbortController>(undefined)
+
+  useEffect(() => () => writeController.current?.abort(), [])
 
   const receive = useCallback((next: IntakeDraft) => {
     setDraft(next)
     if (next.status === 'READY') setLines(next.lines.map(toEditable))
   }, [])
 
+  const draftId = draft?.id
+  const draftStatus = draft?.status
   useEffect(() => {
-    if (draft?.status !== 'PROCESSING') return
-    let cancelled = false
-    const timer = setTimeout(async () => {
-      try {
-        const res = await getIntakeDraft(draft.id)
-        if (!cancelled) receive(bodyOf<IntakeDraft>(res))
-      } catch (e) {
-        if (cancelled) return
-        setDraft(undefined)
-        setError(messageOf(e, '분석 상태를 확인하지 못했어요. 다시 찍어 주세요.'))
-      }
-    }, POLL_INTERVAL_MS)
-    return () => {
-      cancelled = true
+    if (draftStatus !== 'PROCESSING' || draftId === undefined) return
+    const controller = new AbortController()
+    let errors = 0
+    let timer: ReturnType<typeof setTimeout>
+    const stop = (message: string) => {
+      controller.abort()
       clearTimeout(timer)
+      setDraft(undefined)
+      setError(message)
     }
-  }, [draft, receive])
+    const deadline = setTimeout(
+      () => stop('분석이 오래 걸리고 있어요. 사진을 다시 찍어 주세요.'),
+      POLL_TIMEOUT_MS,
+    )
+    const poll = async () => {
+      try {
+        const res = await getIntakeDraft(draftId, { signal: controller.signal })
+        if (controller.signal.aborted) return
+        const next = bodyOf<IntakeDraft>(res)
+        receive(next)
+        errors = 0
+        if (next.status !== 'PROCESSING') return
+      } catch (e) {
+        if (controller.signal.aborted) return
+        errors += 1
+        const transient =
+          !(e instanceof ApiError) || e.status >= 500 || [408, 429].includes(e.status)
+        if (!transient || errors >= MAX_POLL_ERRORS) {
+          stop('분석 상태를 확인하지 못했어요. 사진을 다시 찍어 주세요.')
+          return
+        }
+      }
+      timer = setTimeout(() => void poll(), POLL_INTERVAL_MS)
+    }
+    timer = setTimeout(() => void poll(), POLL_INTERVAL_MS)
+    return () => {
+      controller.abort()
+      clearTimeout(timer)
+      clearTimeout(deadline)
+    }
+  }, [draftId, draftStatus, receive])
 
   useEffect(() => {
     return () => {
@@ -117,6 +173,11 @@ export function useIntake() {
 
   const upload = useCallback(
     async (photo: File) => {
+      writeController.current?.abort()
+      const controller = new AbortController()
+      writeController.current = controller
+      confirmAttempt.current = undefined
+      const key = crypto.randomUUID()
       setPhotoUrl(URL.createObjectURL(photo))
       setDraft(undefined)
       setLines([])
@@ -124,20 +185,27 @@ export function useIntake() {
       setError(undefined)
       setUploading(true)
       try {
-        const event = (await listEvents()).data[0]
+        const event = (await listEvents({ signal: controller.signal })).data[0]
+        if (controller.signal.aborted) return
         if (!event) {
           setError('등록할 행사를 찾지 못했어요.')
           return
         }
-        const res = await createIntakeDraft(
-          { eventId: event.id, photo },
-          { 'Idempotency-Key': crypto.randomUUID() },
+        const res = await retryConflict(
+          () =>
+            createIntakeDraft(
+              { eventId: event.id, photo },
+              { 'Idempotency-Key': key },
+              { signal: controller.signal },
+            ),
+          controller.signal,
         )
-        receive(bodyOf<IntakeDraft>(res))
+        if (!controller.signal.aborted) receive(bodyOf<IntakeDraft>(res))
       } catch (e) {
-        setError(messageOf(e, '사진을 올리지 못했어요. 다시 찍어 주세요.'))
+        if (!controller.signal.aborted)
+          setError(messageOf(e, '사진을 올리지 못했어요. 다시 찍어 주세요.'))
       } finally {
-        setUploading(false)
+        if (!controller.signal.aborted) setUploading(false)
       }
     },
     [receive],
@@ -151,6 +219,9 @@ export function useIntake() {
 
   const confirm = useCallback(async () => {
     if (!draft || !canConfirm) return
+    writeController.current?.abort()
+    const controller = new AbortController()
+    writeController.current = controller
     const request = toRequest(lines)
     const body = JSON.stringify(request)
     if (confirmAttempt.current?.body !== body) {
@@ -158,15 +229,26 @@ export function useIntake() {
     }
     setError(undefined)
     setConfirming(true)
+    const key = confirmAttempt.current.key
     try {
-      const res = await confirmIntakeDraft(draft.id, request, {
-        'Idempotency-Key': confirmAttempt.current.key,
-      })
-      setItems(bodyOf<Item[]>(res))
+      const res = await retryConflict(
+        () =>
+          confirmIntakeDraft(
+            draft.id,
+            request,
+            { 'Idempotency-Key': key },
+            { signal: controller.signal },
+          ),
+        controller.signal,
+      )
+      if (!controller.signal.aborted) setItems(bodyOf<Item[]>(res))
     } catch (e) {
+      if (controller.signal.aborted) return
+      if (e instanceof ApiError && e.code === 'IDEMPOTENCY_CONFLICT')
+        confirmAttempt.current = undefined
       setError(messageOf(e, '재고로 등록하지 못했어요. 다시 시도해 주세요.'))
     } finally {
-      setConfirming(false)
+      if (!controller.signal.aborted) setConfirming(false)
     }
   }, [draft, lines, canConfirm])
 

@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.afterbooth.global.error.BusinessException;
+import com.afterbooth.global.error.ErrorCode;
 import java.time.Instant;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -25,21 +26,21 @@ class IntakeDraftTest {
     draft.confirm(List.of(2L), List.of(2L));
     assertThat(draft.status()).isEqualTo(IntakeStatus.CONFIRMED);
     assertThatThrownBy(() -> draft.confirm(List.of(2L), List.of(2L)))
-        .isInstanceOf(IntakeException.class)
-        .extracting(e -> ((IntakeException) e).error())
-        .isEqualTo(IntakeError.DRAFT_ALREADY_CONFIRMED);
+        .isInstanceOf(BusinessException.class)
+        .extracting(e -> ((BusinessException) e).errorCode())
+        .isEqualTo(ErrorCode.DRAFT_ALREADY_CONFIRMED);
   }
 
   @Test
   void cannotConfirmProcessingOrFailed() {
     var draft = IntakeDraft.start(1L, Instant.EPOCH);
     assertThatThrownBy(() -> draft.confirm(List.of(2L), List.of(2L)))
-        .isInstanceOf(IntakeException.class);
+        .isInstanceOf(BusinessException.class);
     draft.fail("failure");
     assertThat(draft.stage()).isEqualTo(IntakeStage.ESTIMATE);
     assertThatThrownBy(() -> draft.confirm(List.of(2L), List.of(2L)))
-        .isInstanceOf(IntakeException.class);
-    assertThatThrownBy(draft::ready).isInstanceOf(IntakeException.class);
+        .isInstanceOf(BusinessException.class);
+    assertThatThrownBy(draft::ready).isInstanceOf(BusinessException.class);
   }
 
   @Test

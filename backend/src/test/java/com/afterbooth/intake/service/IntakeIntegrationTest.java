@@ -9,16 +9,15 @@ import static org.mockito.Mockito.verify;
 
 import com.afterbooth.global.domain.BoundingBox;
 import com.afterbooth.global.error.BusinessException;
+import com.afterbooth.global.error.ErrorCode;
+import com.afterbooth.global.idempotency.IdempotencyRepository;
 import com.afterbooth.intake.domain.DraftCategory;
-import com.afterbooth.intake.domain.IntakeError;
-import com.afterbooth.intake.domain.IntakeException;
 import com.afterbooth.intake.domain.IntakeStatus;
 import com.afterbooth.intake.dto.ConfirmIntakeRequest;
 import com.afterbooth.intake.dto.SizeCm;
 import com.afterbooth.intake.pipeline.EstimatedLine;
 import com.afterbooth.intake.pipeline.IntakePipeline;
 import com.afterbooth.intake.repository.IntakeDraftLineRepository;
-import com.afterbooth.intake.repository.IntakeIdempotencyRepository;
 import com.afterbooth.inventory.domain.Condition;
 import com.afterbooth.inventory.domain.ItemCategory;
 import com.afterbooth.inventory.domain.VehicleType;
@@ -72,7 +71,7 @@ class IntakeIntegrationTest {
   @Autowired IntakeService service;
   @Autowired IntakeProcessingStore store;
   @Autowired IntakeDraftLineRepository lines;
-  @Autowired IntakeIdempotencyRepository records;
+  @Autowired IdempotencyRepository records;
   @Autowired JdbcTemplate jdbc;
 
   @MockitoBean(name = "intakeExecutor")
@@ -112,9 +111,9 @@ class IntakeIntegrationTest {
     assertThat(service.create(key, eventId, photo, "image/png")).isEqualTo(first);
     verify(executor, times(1)).execute(any(Runnable.class));
     assertThatThrownBy(() -> service.create(key, eventId + 10000, photo, "image/png"))
-        .isInstanceOf(IntakeException.class)
-        .extracting(e -> ((IntakeException) e).error())
-        .isEqualTo(IntakeError.IDEMPOTENCY_CONFLICT);
+        .isInstanceOf(BusinessException.class)
+        .extracting(e -> ((BusinessException) e).errorCode())
+        .isEqualTo(ErrorCode.IDEMPOTENCY_CONFLICT);
   }
 
   @Test
@@ -146,13 +145,13 @@ class IntakeIntegrationTest {
         .isEqualTo(1);
     assertThat(service.get(draft.id()).status()).isEqualTo(IntakeStatus.CONFIRMED);
     assertThatThrownBy(() -> service.confirm(UUID.randomUUID(), draft.id(), request))
-        .isInstanceOf(IntakeException.class)
-        .extracting(e -> ((IntakeException) e).error())
-        .isEqualTo(IntakeError.DRAFT_ALREADY_CONFIRMED);
+        .isInstanceOf(BusinessException.class)
+        .extracting(e -> ((BusinessException) e).errorCode())
+        .isEqualTo(ErrorCode.DRAFT_ALREADY_CONFIRMED);
     assertThatThrownBy(() -> service.confirm(key, draft.id(), request(lineId, 4)))
-        .isInstanceOf(IntakeException.class)
-        .extracting(e -> ((IntakeException) e).error())
-        .isEqualTo(IntakeError.IDEMPOTENCY_CONFLICT);
+        .isInstanceOf(BusinessException.class)
+        .extracting(e -> ((BusinessException) e).errorCode())
+        .isEqualTo(ErrorCode.IDEMPOTENCY_CONFLICT);
   }
 
   @Test
@@ -192,17 +191,17 @@ class IntakeIntegrationTest {
   void notReadyMissingEventAndInFlightIdempotencyAreRejected() {
     var draft = service.create(UUID.randomUUID(), eventId, photo, "image/png");
     assertThatThrownBy(() -> service.confirm(UUID.randomUUID(), draft.id(), request(1L, 1)))
-        .isInstanceOf(IntakeException.class)
-        .extracting(e -> ((IntakeException) e).error())
-        .isEqualTo(IntakeError.DRAFT_NOT_READY);
+        .isInstanceOf(BusinessException.class)
+        .extracting(e -> ((BusinessException) e).errorCode())
+        .isEqualTo(ErrorCode.DRAFT_NOT_READY);
     assertThatThrownBy(() -> service.create(UUID.randomUUID(), -1L, photo, "image/png"))
         .isInstanceOf(BusinessException.class);
     UUID key = UUID.randomUUID();
     records.claim(key, "busy", Instant.EPOCH);
     assertThatThrownBy(() -> service.create(key, eventId, photo, "image/png"))
-        .isInstanceOf(IntakeException.class)
-        .extracting(e -> ((IntakeException) e).error())
-        .isEqualTo(IntakeError.IDEMPOTENCY_CONFLICT);
+        .isInstanceOf(BusinessException.class)
+        .extracting(e -> ((BusinessException) e).errorCode())
+        .isEqualTo(ErrorCode.IDEMPOTENCY_CONFLICT);
   }
 
   @Test
@@ -218,8 +217,8 @@ class IntakeIntegrationTest {
             try {
               service.confirm(UUID.randomUUID(), draft.id(), request(line, 2));
               return true;
-            } catch (IntakeException e) {
-              assertThat(e.error()).isEqualTo(IntakeError.DRAFT_ALREADY_CONFIRMED);
+            } catch (BusinessException e) {
+              assertThat(e.errorCode()).isEqualTo(ErrorCode.DRAFT_ALREADY_CONFIRMED);
               return false;
             }
           };
@@ -255,9 +254,9 @@ class IntakeIntegrationTest {
       while (records.find(key).isEmpty() && System.nanoTime() < until) Thread.onSpinWait();
       assertThat(records.find(key)).isPresent();
       assertThatThrownBy(() -> service.confirm(key, draft.id(), request(line, 2)))
-          .isInstanceOf(IntakeException.class)
-          .extracting(e -> ((IntakeException) e).error())
-          .isEqualTo(IntakeError.IDEMPOTENCY_CONFLICT);
+          .isInstanceOf(BusinessException.class)
+          .extracting(e -> ((BusinessException) e).errorCode())
+          .isEqualTo(ErrorCode.IDEMPOTENCY_CONFLICT);
       connection.commit();
       assertThat(first.get(15, TimeUnit.SECONDS)).hasSize(1);
     }

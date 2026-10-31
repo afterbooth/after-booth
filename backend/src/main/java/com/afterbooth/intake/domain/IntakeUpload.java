@@ -6,8 +6,12 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.util.Set;
 import javax.imageio.ImageIO;
+import javax.imageio.ImageReader;
+import javax.imageio.stream.MemoryCacheImageInputStream;
 
 public record IntakeUpload(byte[] bytes, String mediaType) {
+  private static final long MAX_PIXELS = 40_000_000L;
+
   public IntakeUpload {
     if (bytes == null
         || bytes.length == 0
@@ -26,8 +30,19 @@ public record IntakeUpload(byte[] bytes, String mediaType) {
             && bytes[1] == (byte) 216
             && bytes[2] == (byte) 255;
     if (!(mediaType.equals("image/png") ? png : jpeg)) invalid();
-    try (var input = new ByteArrayInputStream(bytes)) {
-      if (ImageIO.read(input) == null) invalid();
+    try (var input = new MemoryCacheImageInputStream(new ByteArrayInputStream(bytes))) {
+      var readers = ImageIO.getImageReaders(input);
+      if (!readers.hasNext()) invalid();
+      ImageReader reader = readers.next();
+      try {
+        reader.setInput(input, true, true);
+        int width = reader.getWidth(0);
+        int height = reader.getHeight(0);
+        if (width <= 0 || height <= 0 || (long) width * height > MAX_PIXELS) invalid();
+        if (reader.read(0) == null) invalid();
+      } finally {
+        reader.dispose();
+      }
     } catch (IOException e) {
       invalid();
     }

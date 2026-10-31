@@ -41,40 +41,24 @@ public class IntakeProcessor {
   }
 
   public void process(Submitted event) {
-    List<EstimatedLine> estimates;
     try {
-      estimates = pipeline.estimate(event.photo());
+      List<EstimatedLine> estimates = pipeline.estimate(event.photo());
+      if (estimates.isEmpty()) {
+        store.ready(event.draftId(), estimates);
+        return;
+      }
+      store.segment(event.draftId());
+      List<EstimatedLine> segmented;
+      try {
+        segmented = pipeline.segment(event.photo(), estimates);
+      } catch (RuntimeException e) {
+        log.warn("Intake segmentation failed for {}", event.draftId(), e);
+        segmented = estimates.stream().map(EstimatedLine::samFailed).toList();
+      }
+      store.ready(event.draftId(), segmented);
     } catch (RuntimeException e) {
-      log.warn("Intake estimation failed for {}", event.draftId(), e);
-      store.fail(event.draftId(), "사진 속 물품을 확인하지 못했어요. 다시 업로드해 주세요.");
-      return;
+      log.warn("Intake processing failed for {}", event.draftId(), e);
+      store.fail(event.draftId(), "사진 속 물품을 처리하지 못했어요. 다시 업로드해 주세요.");
     }
-    if (estimates.isEmpty()) {
-      store.ready(event.draftId(), estimates);
-      return;
-    }
-    store.segment(event.draftId());
-    List<EstimatedLine> segmented;
-    try {
-      segmented = pipeline.segment(event.photo(), estimates);
-    } catch (RuntimeException e) {
-      log.warn("Intake segmentation failed for {}", event.draftId(), e);
-      segmented =
-          estimates.stream()
-              .map(
-                  line ->
-                      new EstimatedLine(
-                          line.category(),
-                          line.count(),
-                          line.boxes(),
-                          line.widthCm(),
-                          line.depthCm(),
-                          line.heightCm(),
-                          line.condition(),
-                          line.confidence(),
-                          true))
-              .toList();
-    }
-    store.ready(event.draftId(), segmented);
   }
 }
