@@ -11,6 +11,8 @@ public enum ErrorCode {
   HOLD_EXPIRED(HttpStatus.CONFLICT, "예약 대기 시간이 만료됐어요."),
   IDEMPOTENCY_CONFLICT(HttpStatus.CONFLICT, "중복 요청 키를 확인해 주세요."),
   INVALID_INPUT(HttpStatus.BAD_REQUEST, "입력값을 확인해 주세요."),
+  DRAFT_NOT_READY(HttpStatus.CONFLICT, "초안 처리가 끝난 뒤 확정해 주세요."),
+  DRAFT_ALREADY_CONFIRMED(HttpStatus.CONFLICT, "이미 확정한 초안이에요."),
   NOT_FOUND(HttpStatus.NOT_FOUND, "대상을 찾을 수 없어요."),
   INTERNAL_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "잠시 후 다시 시도해 주세요.");
 
